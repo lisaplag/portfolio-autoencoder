@@ -15,7 +15,7 @@ def get_returns():
     os.chdir( script_path )
       
     # Assign spreadsheet filename to `file`
-    file = './data/raw data/SES.xlsx'
+    file = './data/raw_data/SES.xlsx'
     
     # Load spreadsheet into dataframe
     df = pd.read_excel(file, header=4, index_col=0)
@@ -31,24 +31,24 @@ def get_returns():
     returns = returns.loc['2003-12-31':'2018-12-31', :]
     returns = returns.dropna(axis = 1)
     
+    # Remove non-trading days
     returns = returns.loc[(returns!=0).any(axis=1)]
+    # Remove infinite returns
     returns = returns.loc[:, (returns != float('Inf')).all(axis=0)]
 
     
     # Write returns to CSV file
-    returns.to_csv('./data/SES.csv')
+    #returns.to_csv('./data/SES.csv')
     return sizes, price_earnings, returns                    
 
 sizes, price_earnings, returns = get_returns()
 
 
-def compute_descriptives(returns):
-    min_t = returns.min(axis = 1)
-    minimum = min_t.min()
-    max_t = returns.max(axis = 1)
-    maximum = max_t.max()
+def compute_descriptives(returns):   
+    mean_i = returns.mean(axis = 1)
     
-    mean_i = returns.mean(axis = 0)
+    minimum = mean_i.min()
+    maximum = mean_i.max()
     mean = mean_i.mean()
     variance = mean_i.var()
     skewness = mean_i.skew()
