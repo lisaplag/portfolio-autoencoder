@@ -1,3 +1,3 @@
-# Autoencoders in Portfolio Theory and Asset Pricing
+# Autoencoders in Portfolio Management
 
 Project for Seminar in Financial Econometrics.
