@@ -17,6 +17,7 @@ from sklearn.preprocessing import StandardScaler
 from collections import defaultdict
 import io 
 from scipy.optimize import minimize
+from sklearn.decomposition import PCA
 
 
 def import_data(index):
@@ -47,6 +48,10 @@ def geometric_mean(x):
       for i in range(0,num_rows):
         ret= ret*(1+x.iloc[i,j])
       r_avg[0,j]=ret**(1/num_rows)
+      #in case the average autoencoded returns are negative, we need to prevent a NaN 
+      if np.isnan(r_avg[0,j]):
+        ret=abs(ret)
+        r_avg[0,j]=-(ret**(1/(num_rows))) 
     r_avg=r_avg-np.ones((num_col)) 
     
     return r_avg
@@ -117,7 +122,7 @@ def mean_var_portfolio(x, y0):
     cons = ([con1, con2])
     solution = minimize(objective_standard,y0,method='SLSQP',\
                         bounds=bnds,constraints=cons)
-    weights_standard=np.round(solution.x,4)
+    weights_standard=solution.x
     
     # out of sample performance
     returns_standard=((1+np.matmul(weights_standard,np.transpose(r_avg_oos)))**252-1)        
@@ -126,6 +131,7 @@ def mean_var_portfolio(x, y0):
     
     #print("returns standard:", returns_standard, "\nvolatility_standard:", volatility_standard, "\nsharpe_standard:", sharpe_standard)
     #print(weights_standard)
+    print(sum(weights_standard))
     return returns_standard, volatility_standard, sharpe_standard
    
     
@@ -146,31 +152,31 @@ def autoencoded_portfolio(x, y0):
 #    r_avg=(np.cumprod(x_in_geo,axis=0).iloc[-1])**(1/in_fraction) - 1
 #    x_oos_geo=1+x_oos
 #    r_avg_oos=(np.cumprod(x_oos_geo,axis=0).iloc[-1])**(1/(num_obs-in_fraction)) - 1
-    r_avg = geometric_mean(x_in)
+#    r_avg = geometric_mean(x_in)
     r_avg_oos = geometric_mean(x_oos)
     sigma_oos=np.cov(x_oos,rowvar=False)
     sigma_oos=np.matrix(sigma_oos)
-    sigma=np.cov(x_in, rowvar=False)
-    sigma=np.matrix(sigma)
+#    sigma=np.cov(x_in, rowvar=False)
+#    sigma=np.matrix(sigma)
     
     inp = Input(shape=(num_stock,))
-    encoded = Dense(128, activation='relu')(inp)
-    encoded = Dense(64, activation='relu')(encoded)
-    encoded = Dense(32, activation='relu')(encoded)
-    decoded = Dense(64, activation='relu')(encoded)
-    decoded = Dense(128, activation='relu')(decoded)
-    decoded = Dense(num_stock, activation='linear')(decoded)
+    encoded = Dense(150, activation='relu')(inp)
+    #encoded = Dense(50, activation='relu')(encoded)
+    encoded = Dense(50, activation='relu')(encoded)
+    #decoded = Dense(50, activation='relu')(encoded)
+    decoded = Dense(150, activation='relu')(encoded)
+    decoded = Dense(num_stock, activation='sigmoid')(decoded)
     
     autoencoder = Model(inp, decoded)
-    autoencoder.compile(optimizer='sgd', loss='mean_squared_error', metrics=['accuracy', 'mean_squared_error'])
+    autoencoder.compile(optimizer='sgd', loss='mean_squared_error', metrics=['accuracy'])
     history = autoencoder.fit(x_in, x_in,
-                    epochs=500,
-                    batch_size=32,
+                    epochs=200, 
+                    batch_size=10,
                     shuffle=False,
                     validation_split=0.15, verbose=0)
     auto_data=pd.DataFrame(autoencoder.predict(x_in))
     #with pd.option_context('display.max_rows', 25, 'display.max_columns', None):
-       # print(auto_data)
+    print(auto_data)
        
     # maximize returns given a certain volatility
     def objective_auto(y):
@@ -178,9 +184,6 @@ def autoencoded_portfolio(x, y0):
   
     def constraint1(y):
       return np.sum(y)-1
-  
-    def constraint2(y):
-      return np.sum(((1+np.matmul(y,np.transpose(r_avg)))**252-1))-(min_ret)
     
     def constraint2_auto(y):
       return np.sum(((1+np.matmul(y,np.transpose(auto_r_avg)))**252-1))-(min_ret)
@@ -198,7 +201,7 @@ def autoencoded_portfolio(x, y0):
       stdev_auto=auto_data.iloc[:,i].std()
       auto_data.iloc[:,i]=stdev/stdev_auto*(np.transpose(np.matrix(auto_data.iloc[:,i]))-average_auto*np.ones((in_fraction,1)))+average*np.ones((in_fraction,1))
       
-    auto_r_avg=auto_data.mean()
+    auto_r_avg=geometric_mean(auto_data)
     auto_r_avg=np.matrix(auto_r_avg)
     auto_sigma=np.cov(auto_data, rowvar=False)
     auto_sigma=np.matrix(auto_sigma)
@@ -207,21 +210,23 @@ def autoencoded_portfolio(x, y0):
     cons_auto = ([con1, con2_auto])
     solution_auto = minimize(objective_auto,y0,method='SLSQP',\
                         bounds=bnds,constraints=cons_auto)
-    weights_auto=np.round(solution_auto.x,4)
+    weights_auto=solution_auto.x
     
     # out of sample performance
     returns_auto=((1+np.matmul(weights_auto,np.transpose(r_avg_oos)))**252-1)   
     volatility_auto=np.sqrt(252*np.matmul(np.matmul(weights_auto,sigma_oos),np.transpose(weights_auto))) 
     sharpe_auto=returns_auto/volatility_auto
     
+    #print(weights_auto)
+    print(sum(weights_auto))
     #print("returns auto:", returns_auto, "\nvolatility_auto:", volatility_auto, "\nsharpe_auto:", sharpe_auto, "\nweights_auto:", weights_auto)
-    return returns_auto, volatility_auto, sharpe_auto, history
+    return returns_auto, volatility_auto, sharpe_auto, history, auto_data
 
 
 def plot_loss(history):
     # summarize history for loss
-    plt.plot(history.history['mean_squared_error'])
-    plt.plot(history.history['val_mean_squared_error'])
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
     plt.title('Model MSE')
     plt.ylabel('MSE')
     plt.xlabel('Epoch')
@@ -255,7 +260,7 @@ def run(num_trials, index):
 
     for n in range(0, num_trials):
         returns_standard, volatility_standard, sharpe_standard = mean_var_portfolio(x, y0)
-        returns_auto, volatility_auto, sharpe_auto, history = autoencoded_portfolio(x, y0)
+        returns_auto, volatility_auto, sharpe_auto, history, auto_data = autoencoded_portfolio(x, y0)
         plot_accuracy(history)
         plot_loss(history)
         returns_s[n], volatility_s[n], sharpe_s[n] = returns_standard, volatility_standard, sharpe_standard
@@ -271,11 +276,11 @@ def run(num_trials, index):
     
     print("returns standard:", avg_return_s, "\nvolatility_standard:", avg_vol_s, "\nsharpe_standard:", avg_sharpe_s)
     print("\nreturns auto:", avg_return_a, "\nvolatility_auto:", avg_vol_a, "\nsharpe_auto:", avg_sharpe_a)
-    return returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, history
+    return returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, history, auto_data
 
 
        
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, history = run(1, 'CAC')
+returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, history, auto_data = run(2, 'CAC')
 
 
 
