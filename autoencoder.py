@@ -7,7 +7,6 @@ Created on Mon Mar 18 09:46:47 2019
 
 import numpy as np
 import pandas as pd
-import random
 import matplotlib.pyplot as plt
 import os
 from keras.layers import Input, Dense
@@ -16,7 +15,6 @@ from keras import regularizers
 from keras.models import load_model
 from sklearn.preprocessing import StandardScaler  
 from collections import defaultdict
-#from google.colab import files
 import io 
 from scipy.optimize import minimize
 
