@@ -9,13 +9,13 @@ Created on Tue Mar 12 09:23:08 2019
 import pandas as pd
 import os
 
-def get_returns():
+def get_returns(index, remove_penny_stocks=False):
     # Give the location of the file 
     script_path = os.getcwd()
     os.chdir( script_path )
       
     # Assign spreadsheet filename to `file`
-    file = './data/raw_data/SES.xlsx'
+    file = './data/raw_data/' + index + '.xlsx'
     
     # Load spreadsheet into dataframe
     df = pd.read_excel(file, header=4, index_col=0)
@@ -25,6 +25,11 @@ def get_returns():
     prices = df.filter(like='(P#T)~U$')
     sizes = df.filter(like='(MV)~U$')
     price_earnings = df.filter(like='(PE)')
+    
+    if remove_penny_stocks == True:
+        prices = prices.loc[:, (prices >= 1).all(axis=0)]
+        
+        
     
     # Compute returns and reduce sample to limit NA values
     returns = prices.pct_change()
@@ -38,10 +43,9 @@ def get_returns():
 
     
     # Write returns to CSV file
-    #returns.to_csv('./data/SES.csv')
-    return sizes, price_earnings, returns                    
+    #returns.to_csv('./data/' + index + '_without_penny_stocks.csv')
+    return prices, sizes, price_earnings, returns                    
 
-sizes, price_earnings, returns = get_returns()
 
 
 def compute_descriptives(returns):   
@@ -60,5 +64,6 @@ def compute_descriptives(returns):
     print(variance)
     print(skewness)
     print(kurtosis)
-    
+   
+prices, sizes, price_earnings, returns = get_returns('SSE', remove_penny_stocks=False)
 compute_descriptives(returns)

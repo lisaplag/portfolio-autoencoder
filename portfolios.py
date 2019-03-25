@@ -25,23 +25,7 @@ def import_data(index):
     file = './data/' + index + '.csv'
     x=pd.read_csv(file, index_col=0)
     return x
-
-
-def geometric_mean(x):    
-    num_col=len(x.columns)
-    num_rows=len(x.index)
-    r_avg=np.ones((1,num_col))
-    r_avg=np.matrix(r_avg)
-    for j in range(0,num_col):
-      ret=1
-      for i in range(0,num_rows):
-        ret= ret*(1+x.iloc[i,j])
-      r_avg[0,j]=ret**(1/num_rows)
-    r_avg=r_avg-np.ones((num_col)) 
     
-    return r_avg
-    
-
 
 def random_weights(n):
     ''' Produces n random weights that sum to 1 '''
@@ -53,9 +37,9 @@ def random_portfolio(returns):
     ''' 
     Returns the mean and standard deviation of returns for a random portfolio
     '''
-    p = np.asmatrix(np.mean(returns, axis=1))
-    w = np.asmatrix(random_weights(returns.shape[0]))
-    C = np.asmatrix(np.cov(returns))
+    p = np.asmatrix(np.mean(returns, axis=0))
+    w = np.asmatrix(random_weights(returns.shape[1]))
+    C = np.asmatrix(np.cov(returns, rowvar=False))
     
     mu = w * p.T
     sigma = np.sqrt(w * C * w.T)
@@ -77,15 +61,14 @@ def generate_portfolios(returns, n_portfolios):
 
 
 def optimal_portfolio(returns):
-    n = len(returns)
+    n = returns.shape[1]
     returns = np.asmatrix(returns)
-    p = np.asmatrix(np.mean(returns, axis=1))
-    
-    N = 5
-    mus = [0.0001,0.0002,0.0003,0.0004,0.0005]
+    p = np.asmatrix(np.mean(returns, axis=0))
+
+    mus = [0.0001,0.0002]
     
     # Convert to cvxopt matrices
-    S = opt.matrix(np.cov(returns))
+    S = opt.matrix(np.cov(returns,rowvar=False))
     pbar = opt.matrix(p)
     
     # Create constraint matrices
@@ -95,8 +78,7 @@ def optimal_portfolio(returns):
     b = opt.matrix(1.0)
     
     # Calculate efficient frontier weights using quadratic programming
-    portfolios = [solvers.qp(mu*S, -pbar, G, h, A, b)['x'] 
-                  for mu in mus]
+    portfolios = [solvers.qp(mu*S, -pbar, G, h, A, b)['x'] for mu in mus]
     ## CALCULATE RISKS AND RETURNS FOR FRONTIER
     returns = [blas.dot(pbar, x) for x in portfolios]
     risks = [np.sqrt(blas.dot(x, S*x)) for x in portfolios]
@@ -108,8 +90,8 @@ def optimal_portfolio(returns):
     return np.asarray(wt), returns, risks
 
 
-returns = import_data('FTSE')
-means, stds = generate_portfolios(returns, 500)
+returns = import_data('CAC')
+means, stds = generate_portfolios(returns, 50)
 weights, returns, risks = optimal_portfolio(returns)
 
 plt.plot(stds, means, 'o')
