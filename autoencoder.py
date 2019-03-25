@@ -8,6 +8,7 @@ Created on Mon Mar 18 09:46:47 2019
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 import os
 import math
 from keras.layers import Input, Dense
@@ -176,8 +177,8 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     autoencoder = Model(inp, decoded)
     encoder = Model(inp, encoded)
     autoencoder.summary()
-    #autoencoder.compile(optimizer='sgd', loss='mean_squared_error', metrics=['accuracy'])
-    autoencoder.compile(optimizer='adam', loss='mean_absolute_error', metrics=['accuracy'])
+    #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
+    autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
     history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
                               shuffle=False, validation_split=0.15, verbose=0)
     encoded_data=pd.DataFrame(encoder.predict(x_in))
@@ -194,6 +195,19 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     plt.ylabel('Return')
     plt.title('Figure 5: Autoencoded data')
     plt.legend()
+    plt.show()
+    
+    # the histogram of the data
+    legend = ['Original', 'Decoded']
+    range_hist = (-0.1, 0.1)
+    n, bins, patches = plt.hist([x_in.values.flatten(), auto_data.values.flatten()], bins=20, range = range_hist, color=['orange', 'green'])
+    # add a 'best fit' line
+    y = mlab.normpdf(bins, 0, 1)
+    plt.plot(20, y, 'r--')
+    plt.xlabel("Daily Return")
+    plt.ylabel("Frequency")
+    plt.legend(legend)
+    plt.title('Histograms')
     plt.show()
     
     print(x_in.mean(axis=0).mean())
@@ -221,7 +235,7 @@ def autoencoded_portfolio(x, initial_weights, method='none'):
     
     # autoencoding in-sample data
     encoded_data, auto_data = autoencode_data(x_in, epochs=50, batch_size=64, \
-                                         activations='relu', depth=2, neurons=int(num_stock/3))
+                                         activations='relu', depth=6, neurons=int(num_stock/2))
 
     # rescaling autoencoded data to original mean and variance
     if method == 'rescale':
@@ -336,7 +350,7 @@ def run(num_trials, index):
 #x = import_data('FTSE')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
       
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(2, 'NASDAQ')
+returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(2, 'CDAX_without_penny_stocks')
 
 #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
 
