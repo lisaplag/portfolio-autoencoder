@@ -180,7 +180,7 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
     autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
     history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_split=0.15, verbose=0)
+                              shuffle=True, validation_split=0.15, verbose=0)
     encoded_data=pd.DataFrame(encoder.predict(x_in))
     auto_data=pd.DataFrame(autoencoder.predict(x_in))
     
@@ -202,8 +202,8 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     range_hist = (-0.1, 0.1)
     n, bins, patches = plt.hist([x_in.values.flatten(), auto_data.values.flatten()], bins=20, range = range_hist, color=['orange', 'green'])
     # add a 'best fit' line
-    y = mlab.normpdf(bins, 0, 1)
-    plt.plot(20, y, 'r--')
+#    y = mlab.normpdf(bins, 0, 1)
+#    plt.plot(20, y, 'r--')
     plt.xlabel("Daily Return")
     plt.ylabel("Frequency")
     plt.legend(legend)
@@ -342,15 +342,18 @@ def run(num_trials, index):
     avg_vol_a = sum(volatility_a) / num_trials
     avg_sharpe_a = sum(sharpe_a) / num_trials
     
-    print("returns standard:", avg_return_s, "\nvolatility_standard:", avg_vol_s, "\nsharpe_standard:", avg_sharpe_s)
-    print("\nreturns auto:", avg_return_a, "\nvolatility_auto:", avg_vol_a, "\nsharpe_auto:", avg_sharpe_a)
+    returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
+    
+    print("\nreturns 1/N:", returns_oos, "\nvolatility 1/N:", volatility_oos, "\nsharpe 1/N:", sharpe_oos)
+    print("\nreturns standard:", avg_return_s, "\nvolatility standard:", avg_vol_s, "\nsharpe standard:", avg_sharpe_s)
+    print("\nreturns auto:", avg_return_a, "\nvolatility auto:", avg_vol_a, "\nsharpe auto:", avg_sharpe_a)
     return returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data
 
 
 #x = import_data('FTSE')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
       
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(2, 'CDAX_without_penny_stocks')
+returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(3, 'CDAX_without_penny_stocks')
 
 #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
 

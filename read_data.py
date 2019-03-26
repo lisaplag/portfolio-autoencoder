@@ -5,9 +5,11 @@ Created on Tue Mar 12 09:23:08 2019
 @author: plagl
 """
 
-# Reading an excel file using Python 
+import numpy as np
 import pandas as pd
 import os
+import matplotlib.pyplot as plt
+import matplotlib.mlab as mlab
 
 def get_returns(index, remove_penny_stocks=False):
     # Give the location of the file 
@@ -64,6 +66,30 @@ def compute_descriptives(returns):
     print(variance)
     print(skewness)
     print(kurtosis)
+    
+def plot_data(data, title, ylabel):
+    """Plot stock prices with a custom title and meaningful axis labels."""
+    ax = data.mean(axis=1).plot(title=title, fontsize=12)
+    ax.set_xlabel("Date")
+    ax.set_ylabel(ylabel)
+    plt.show()
+    
+def plot_histogram(data):
+    daily_returns = data.values.flatten()
+    plt.hist(daily_returns, bins=5)
+    mean = daily_returns.mean()
+    std = daily_returns.std()
+ 
+    plt.axvline(x=mean, color='r', linestyle='--')
+    plt.axvline(x=std, color='k', linestyle='--')
+    plt.axvline(x=-std, color='k', linestyle='--')
+ 
+    plt.show()
+    
    
-prices, sizes, price_earnings, returns = get_returns('SSE', remove_penny_stocks=False)
-compute_descriptives(returns)
+prices, sizes, price_earnings, returns = get_returns('CAC', remove_penny_stocks=True)
+#compute_descriptives(returns)
+
+plot_histogram(returns)
+
+
