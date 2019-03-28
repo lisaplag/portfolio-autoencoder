@@ -6,20 +6,22 @@ Created on Mon Mar 18 09:46:47 2019
 """
 
 import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
 import os
+import pandas as pd
 import math
-from keras.layers import Input, Dense
-from keras.models import Model
+from keras.layers import Input, Dense, GaussianNoise
+from keras.models import Model, Sequential
+from scipy.optimize import minimize
+import figures as fg
+
+from keras.layers.advanced_activations import LeakyReLU, PReLU, ReLU, ELU
 from keras import regularizers
 from keras.models import load_model
 from sklearn.preprocessing import StandardScaler  
 from collections import defaultdict
-from scipy.optimize import minimize
 from sklearn.decomposition import PCA
-from keras.layers import LeakyReLU
+
+
 
 
 def import_data(index):
@@ -59,6 +61,8 @@ def geometric_mean(x):  # not in use anymore
     return r_avg
     
     
+    
+    
 def one_over_N(x):
     num_obs=len(x.index)
     num_stock=len(x.columns)
@@ -87,8 +91,6 @@ def one_over_N(x):
     
     print("returns in sample:", returns_in, "\nreturns out of sample:", returns_oos)
     return returns_in, returns_oos, volatility_oos, sharpe_oos
-    
-    
     
 
 def mean_var_portfolio(x, y0):
@@ -180,35 +182,18 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
     autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
     history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
-                              shuffle=True, validation_split=0.15, verbose=0)
+                              shuffle=False, validation_split=0.15, verbose=0)
     encoded_data=pd.DataFrame(encoder.predict(x_in))
     auto_data=pd.DataFrame(autoencoder.predict(x_in))
     
-    plot_accuracy(history)
-    plot_loss(history)
+    fg.plot_accuracy(history)
+    fg.plot_loss(history)
     
     # plot original, encoded and decoded data for some stock
-    plt.figure(figsize=(12, 6), dpi=100)
-    plt.plot(x_in.mean(axis=1), label='Original')
-    plt.plot(auto_data.mean(axis=1), color='red', label='Decoded')
-    plt.xlabel('Days')
-    plt.ylabel('Return')
-    plt.title('Figure 5: Autoencoded data')
-    plt.legend()
-    plt.show()
+    fg.plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
     
     # the histogram of the data
-    legend = ['Original', 'Decoded']
-    range_hist = (-0.1, 0.1)
-    n, bins, patches = plt.hist([x_in.values.flatten(), auto_data.values.flatten()], bins=20, range = range_hist, color=['orange', 'green'])
-    # add a 'best fit' line
-#    y = mlab.normpdf(bins, 0, 1)
-#    plt.plot(20, y, 'r--')
-    plt.xlabel("Daily Return")
-    plt.ylabel("Frequency")
-    plt.legend(legend)
-    plt.title('Histograms')
-    plt.show()
+    fg.make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')
     
     print(x_in.mean(axis=0).mean())
     print(x_in.std(axis=0).mean())
@@ -217,11 +202,68 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
 
     #with pd.option_context('display.max_rows', 25, 'display.max_columns', None):
     #print(auto_data)
-    return encoded_data, auto_data
+    return auto_data
+
+
+
+def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
+    num_stock=len(x_in.columns)
+    
+    # activation functions    
+    if activations == 'elu':
+        function = ELU(alpha=1.0)
+    elif activations == 'lrelu':
+        function = LeakyReLU(alpha=0.1)
+    else:
+        function = ReLU(max_value=None, negative_slope=0.0, threshold=0.0)
+        
+    autoencoder = Sequential()
+    # encoding layers of desired depth
+    for n in range(1, depth+1):
+        # input layer
+        if n==1:
+            autoencoder.add(GaussianNoise(stddev=0.01, input_shape=(num_stock,)))
+            autoencoder.add(Dense(int(neurons/n), input_shape=(num_stock,)))
+            autoencoder.add(function)
+        else:            
+            autoencoder.add(Dense(int(neurons/n)))
+            autoencoder.add(function)
+    # decoding layers of desired depth
+    for n in range(depth, 1, -1):
+        autoencoder.add(Dense(int(neurons/(n-1))))
+        autoencoder.add(function)
+    # output layer
+    autoencoder.add(Dense(num_stock, activation='linear'))
+    
+    #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
+    autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
+    history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
+                              shuffle=False, validation_split=0.15, verbose=0)
+    auto_data=pd.DataFrame(autoencoder.predict(x_in))
+    autoencoder.summary()
+    
+    # plot accuracy and loss of autoencoder
+    fg.plot_accuracy(history)
+    fg.plot_loss(history)
+    
+    # plot original, encoded and decoded data for some stock
+    fg.plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
+    
+    # the histogram of the data
+    fg.make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')
+    
+    print(x_in.mean(axis=0).mean())
+    print(x_in.std(axis=0).mean())
+    print(auto_data.mean(axis=0).mean())
+    print(auto_data.std(axis=0).mean())
+
+    #with pd.option_context('display.max_rows', 25, 'display.max_columns', None):
+    #print(auto_data)
+    return auto_data
     
     
     
-def autoencoded_portfolio(x, initial_weights, method='none'):
+def autoencoded_portfolio(x, initial_weights, activation, depth, method):
     num_obs=len(x.index)
     num_stock=len(x.columns)
     in_fraction=int(0.8*num_obs)
@@ -234,8 +276,8 @@ def autoencoded_portfolio(x, initial_weights, method='none'):
     sigma_oos=np.cov(x_oos,rowvar=False)
     
     # autoencoding in-sample data
-    encoded_data, auto_data = autoencode_data(x_in, epochs=50, batch_size=64, \
-                                         activations='relu', depth=6, neurons=int(num_stock/2))
+    auto_data = advanced_autoencoder(x_in=x_in, epochs=50, batch_size=32, \
+                                     activations=activation, depth=depth, neurons=int(num_stock/2))
 
     # rescaling autoencoded data to original mean and variance
     if method == 'rescale':
@@ -291,70 +333,67 @@ def autoencoded_portfolio(x, initial_weights, method='none'):
     #print(sum(weights_auto))
     #print("returns auto:", returns_auto, "\nvolatility_auto:", volatility_auto, "\nsharpe_auto:", sharpe_auto, "\nweights_auto:", weights_auto)
     return returns_auto, volatility_auto, sharpe_auto, auto_data
-
-
-def plot_loss(history):
-    # summarize history for loss
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
-    plt.title('Model MSE')
-    plt.ylabel('MSE')
-    plt.xlabel('Epoch')
-    plt.legend(['train', 'validation'], loc='upper left')
-    plt.show()
-    return
-
-def plot_accuracy(history):  
-    # summarize history for accuracy
-    plt.plot(history.history['acc'])
-    plt.plot(history.history['val_acc'])
-    plt.title('Model accuracy')
-    plt.ylabel('Accuracy')
-    plt.xlabel('Epoch')
-    plt.legend(['train', 'validation'], loc='upper left')
-    plt.show()
-    return
     
-  
-    
-def run(num_trials, index):
-    x = import_data(index)
+      
+def run(num_trials, x):
     y0 = initialize_weights(len(x.columns))
     
-    returns_s = np.zeros(num_trials)
-    volatility_s = np.zeros(num_trials)
-    sharpe_s = np.zeros(num_trials)
+    # construct 1/N portfolio
+    return_in, return_oos, volatility_oos, sharpe_oos = one_over_N(x)
+    
+    # construct standard mean-variance portfolio
+    return_s, volatility_s, sharpe_s = mean_var_portfolio(x, y0)
+    
+    # construct portfolios based on autoencoded returns 
     returns_a = np.zeros(num_trials)
     volatility_a = np.zeros(num_trials)
     sharpe_a = np.zeros(num_trials)
-
     for n in range(0, num_trials):
-        returns_standard, volatility_standard, sharpe_standard = mean_var_portfolio(x, y0)
-        returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, y0, method='original_variance')
-        returns_s[n], volatility_s[n], sharpe_s[n] = returns_standard, volatility_standard, sharpe_standard
+        np.random.seed(1) # using random seed to get reproducible results
+        returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, y0, 'elu', 2, 'original_variance')
         returns_a[n], volatility_a[n], sharpe_a[n] = returns_auto, volatility_auto, sharpe_auto
         
-    avg_return_s = sum(returns_s) / num_trials
-    avg_vol_s = sum(volatility_s) / num_trials
-    avg_sharpe_s = sum(sharpe_s) / num_trials
-    
+    # average over the trials
     avg_return_a = sum(returns_a) / num_trials
     avg_vol_a = sum(volatility_a) / num_trials
     avg_sharpe_a = sum(sharpe_a) / num_trials
     
-    returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
-    
-    print("\nreturns 1/N:", returns_oos, "\nvolatility 1/N:", volatility_oos, "\nsharpe 1/N:", sharpe_oos)
-    print("\nreturns standard:", avg_return_s, "\nvolatility standard:", avg_vol_s, "\nsharpe standard:", avg_sharpe_s)
+    print("\nreturns 1/N:", return_oos, "\nvolatility 1/N:", volatility_oos, "\nsharpe 1/N:", sharpe_oos)
+    print("\nreturns standard:", return_s, "\nvolatility standard:", volatility_s, "\nsharpe standard:", sharpe_s)
     print("\nreturns auto:", avg_return_a, "\nvolatility auto:", avg_vol_a, "\nsharpe auto:", avg_sharpe_a)
-    return returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data
+    
+    return return_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data
 
 
-#x = import_data('FTSE')
+def rolling_window(index, window_size):
+    data = import_data(index)
+    results = np.zeros((len(data.index),3))
+    
+    for row in range(0, len(data.index), 1):
+        x = data.x_data[row: row + window_size]
+        results[row] = run(3, x)
+        
+    return results
+
+x = import_data('CDAX_without_penny_stocks')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
+    #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
       
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(3, 'CDAX_without_penny_stocks')
-
-#encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
+returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(1, x)
 
 
+# expect to introduce a bias and reduce the varianc, use performance of portfolio as measure
+# can do some statistical tests, confidence interval for sharpe ratio and compare to standard mean-var portfolio
+# either reduce bias or variance
+# estimates sensitive to use of rolling windows etc. (outliers entering window)
+# denoising autoencoder is focused on reducing noise/variance of estimator
+# mean-var portfolio is subject to erratic changes in weights - more transaction costs
+# autoencoder reduces estimation variance, less extreme rebalancing, less turnover hopefully!
+# compute turnover
+# sharpe ratio relevant because investor wanted a certain sharpe ratio, tracking error
+# using autoencoder to reduce turnover/variance
+# CIs: bootstrapping samples or cross-validation to show significance, respecting sample properties, time series
+# use seed for keras, test significance over time
+# what are we estimating: mean&var or a portfolio??
+# portfolio mean and variance not the same as the ones we are estimating (individual asset returns and covariances)
+# in practice due to measurement error no direct link between the two

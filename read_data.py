@@ -8,6 +8,7 @@ Created on Tue Mar 12 09:23:08 2019
 import numpy as np
 import pandas as pd
 import os
+from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 
@@ -59,6 +60,7 @@ def compute_descriptives(returns):
     variance = mean_i.var()
     skewness = mean_i.skew()
     kurtosis = mean_i.kurtosis()
+    jb = stats.jarque_bera(mean_i)
     
     print(minimum)
     print(maximum)
@@ -66,6 +68,7 @@ def compute_descriptives(returns):
     print(variance)
     print(skewness)
     print(kurtosis)
+    print(jb)
     
 def plot_data(data, title, ylabel):
     """Plot stock prices with a custom title and meaningful axis labels."""
@@ -87,9 +90,9 @@ def plot_histogram(data):
     plt.show()
     
    
-prices, sizes, price_earnings, returns = get_returns('CAC', remove_penny_stocks=True)
-#compute_descriptives(returns)
+prices, sizes, price_earnings, returns = get_returns('NASDAQ', remove_penny_stocks=False)
+compute_descriptives(returns)
 
-plot_histogram(returns)
+#plot_histogram(returns)
 
 
