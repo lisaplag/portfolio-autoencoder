@@ -20,6 +20,7 @@ from keras.models import load_model
 from sklearn.preprocessing import StandardScaler  
 from collections import defaultdict
 from sklearn.decomposition import PCA
+from arch.bootstrap import StationaryBootstrap
 
 
 
@@ -377,8 +378,20 @@ def rolling_window(index, window_size):
     return results
 
 
+def sharpe_ratio(x):
+    mu=(1 + weights_standard*r_avg_oos.T)**252 - 1      
+    sigma=np.sqrt(252 * weights_standard*sigma_oos*weights_standard.T)
+    values = np.array([mu, sigma, mu / sigma ]).squeeze()
+    index = ['mu', 'sigma', 'SR']
+    return pd.Series(values, index=index)
+
+
 def bootstrap_performance(data, n):
     # bootstrapping sharpe ratio - Work in Progress
+    bs = StationaryBootstrap(252, data)
+    results = bs.apply(sharpe_ratio, 2500)
+    SR = pd.DataFrame(results[:,-1:], columns=['SR'])
+    fig = SR.hist(bins=40)
     return
     
 x = import_data('CDAX_without_penny_stocks')

@@ -12,7 +12,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 
-def get_returns(index, remove_penny_stocks=False):
+def get_returns(index, remove_penny_stocks=False, write=False):
     # Give the location of the file 
     script_path = os.getcwd()
     os.chdir( script_path )
@@ -22,6 +22,7 @@ def get_returns(index, remove_penny_stocks=False):
     
     # Load spreadsheet into dataframe
     df = pd.read_excel(file, header=4, index_col=0)
+    df.index = pd.to_datetime(df.index)
     df = df.drop(df.columns[df.columns.str.contains('unnamed', case = False)], axis = 1)
     
     # Split datatypes into different data frames
@@ -29,11 +30,9 @@ def get_returns(index, remove_penny_stocks=False):
     sizes = df.filter(like='(MV)~U$')
     price_earnings = df.filter(like='(PE)')
     
-    if remove_penny_stocks == True:
+    if remove_penny_stocks:
         prices = prices.loc[:, (prices >= 1).all(axis=0)]
         
-        
-    
     # Compute returns and reduce sample to limit NA values
     returns = prices.pct_change()
     returns = returns.loc['2003-12-31':'2018-12-31', :]
@@ -44,11 +43,49 @@ def get_returns(index, remove_penny_stocks=False):
     # Remove infinite returns
     returns = returns.loc[:, (returns != float('Inf')).all(axis=0)]
 
-    
     # Write returns to CSV file
-    #returns.to_csv('./data/' + index + '_without_penny_stocks.csv')
-    return prices, sizes, price_earnings, returns                    
+    if write and remove_penny_stocks:
+        returns.to_csv('./data/' + index + '_without_penny_stocks.csv')
+    elif write:
+        returns.to_csv('./data/' + index + '.csv')
+        
+    return prices, sizes, price_earnings, returns      
 
+
+def get_rf(frequency='daily', descriptives=False):
+    # Give the location of the file 
+    script_path = os.getcwd()
+    os.chdir( script_path )
+      
+    # Assign spreadsheet filename to `file`
+    file = './data/RF_' + frequency + '.csv'
+    
+    # Load spreadsheet into dataframe
+    df = pd.read_csv(file, header=0, index_col=0)
+    df.index = pd.to_datetime(df.index)
+    rf = df.filter(items=['rf'])
+    mktrf = df.filter(items=['mktrf'])
+    
+    
+    # Compute descriptive statistics if desired
+    if descriptives:
+        print(rf.min())
+        print(rf.max())
+        print(rf.mean())
+        print(rf.var())
+        print(rf.skew())
+        print(rf.kurtosis())
+        print(stats.jarque_bera(rf))
+    
+    return mktrf, rf
+
+
+def join_risky_with_riskless(risky, riskless):
+    risky = risky.assign(key=1)
+    riskless = riskless.assign(key=1)
+    merged = pd.merge(risky, riskless, on='key').drop('key',axis=1)
+              
+    return merged
 
 
 def compute_descriptives(returns):   
@@ -90,9 +127,11 @@ def plot_histogram(data):
     plt.show()
     
    
-prices, sizes, price_earnings, returns = get_returns('NASDAQ', remove_penny_stocks=False)
-compute_descriptives(returns)
+#prices, sizes, price_earnings, returns = get_returns('NASDAQ', remove_penny_stocks=False, write=False)
+#compute_descriptives(returns)
 
 #plot_histogram(returns)
+    
+mktrf, rf = get_rf('daily', True)
 
 
