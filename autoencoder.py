@@ -57,10 +57,7 @@ def geometric_mean(x):  # not in use anymore
         ret=abs(ret)
         r_avg[0,j]=-(ret**(1/(num_rows))) 
     r_avg=r_avg-np.ones((num_col)) 
-    
     return r_avg
-    
-    
     
     
 def one_over_N(x):
@@ -139,7 +136,7 @@ def mean_var_portfolio(x, y0):
     return returns_standard, volatility_standard, sharpe_standard
    
 
-
+# old version - not in use anymore
 def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     num_stock=len(x_in.columns)
     inp = Input(shape=(num_stock,))
@@ -151,7 +148,6 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
         return max(x, 0)
     def lrelu(x):
         return max(0.01*x, x)
-    
 #    if activations == 'gelu':
 #        function = gelu(x)
 #    elif activations == 'lrelu':
@@ -262,7 +258,6 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     return auto_data
     
     
-    
 def autoencoded_portfolio(x, initial_weights, activation, depth, method):
     num_obs=len(x.index)
     num_stock=len(x.columns)
@@ -335,7 +330,7 @@ def autoencoded_portfolio(x, initial_weights, activation, depth, method):
     return returns_auto, volatility_auto, sharpe_auto, auto_data
     
       
-def run(num_trials, x):
+def run(x, num_trials=1):
     y0 = initialize_weights(len(x.columns))
     
     # construct 1/N portfolio
@@ -344,14 +339,18 @@ def run(num_trials, x):
     # construct standard mean-variance portfolio
     return_s, volatility_s, sharpe_s = mean_var_portfolio(x, y0)
     
-    # construct portfolios based on autoencoded returns 
-    returns_a = np.zeros(num_trials)
-    volatility_a = np.zeros(num_trials)
-    sharpe_a = np.zeros(num_trials)
-    for n in range(0, num_trials):
-        np.random.seed(1) # using random seed to get reproducible results
-        returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, y0, 'elu', 2, 'original_variance')
-        returns_a[n], volatility_a[n], sharpe_a[n] = returns_auto, volatility_auto, sharpe_auto
+    # construct portfolios based on autoencoded returns     
+    if num_trials == 1:
+        np.random.seed(1) # using random seed to get reproducible result
+        returns_a, volatility_a, sharpe_a, auto_data = autoencoded_portfolio(x, y0, 'lrelu', 2, 'original_variance')
+    else:
+        returns_a = np.zeros(num_trials)
+        volatility_a = np.zeros(num_trials)
+        sharpe_a = np.zeros(num_trials)
+        for n in range(0, num_trials):
+            np.random.seed(1) # using random seed to get reproducible results
+            returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, y0, 'lrelu', 2, 'original_variance')
+            returns_a[n], volatility_a[n], sharpe_a[n] = returns_auto, volatility_auto, sharpe_auto
         
     # average over the trials
     avg_return_a = sum(returns_a) / num_trials
@@ -366,6 +365,8 @@ def run(num_trials, x):
 
 
 def rolling_window(index, window_size):
+    # use rolling window only to reestimate portfolio weights, not to train autoencoder again
+    # Work in Progress
     data = import_data(index)
     results = np.zeros((len(data.index),3))
     
@@ -375,11 +376,16 @@ def rolling_window(index, window_size):
         
     return results
 
+
+def bootstrap_performance(data, n):
+    # bootstrapping sharpe ratio - Work in Progress
+    return
+    
 x = import_data('CDAX_without_penny_stocks')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
     #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
       
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(1, x)
+returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(x,1)
 
 
 # expect to introduce a bias and reduce the varianc, use performance of portfolio as measure
