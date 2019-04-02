@@ -2,7 +2,7 @@
 """
 Created on Mon Mar 18 09:46:47 2019
 
-@author: plagl
+@author: Fabricevr
 """
 
 import numpy as np
@@ -32,15 +32,11 @@ def import_data(index):
     x=pd.read_csv(file, index_col=0)
     return x
 
-
 def initialize_weights(num_stock):
     # initial guesses for the weights
     y0 = np.matrix(np.ones(num_stock)*(1/num_stock))
     return y0
-
-
-    
-    
+  
 def one_over_N(x):
     num_obs=len(x.index)
     num_stock=len(x.columns)
@@ -50,14 +46,17 @@ def one_over_N(x):
     
     # compute means and covariance matrix
     r_avg=np.asmatrix(np.mean(x_in, axis=0))
+    sigma=np.cov(x_in, rowvar=False)
     r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
     sigma_oos=np.cov(x_oos,rowvar=False)
       
-    # construct 1/N portfolio 
+    # construct 1/N-weight portfolio 
     y0 = np.matrix(np.ones(num_stock)*(1/num_stock))
 
-    # in sample performance
+    # in sample performance, annualized
     returns_in=((1 + y0*r_avg.T)**252) - 1
+    volatility_in = np.sqrt(252 * y0*sigma*y0.T)
+    sharpe_in = returns_in/volatility_in
     
     # out of sample performance
     returns_oos=(1+ y0*r_avg_oos.T)**252 - 1     
@@ -195,13 +194,13 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
         return max(0.01*x, x)
     
     #make noisy data  
-    num_obs=len(x.index)
-    in_fraction=int(0.85*num_obs)
-    x_train=x_in[:in_fraction]
-    x_test=x_in[in_fraction:]
+    num_obs_in=len(x.index)
+    in_fraction=int(0.85*num_obs_in)
+    x_train=x_in[:in_fraction] #in-smaple training subsample
+    x_test=x_in[in_fraction:] #in-sample testing subsample
     
-    noise_factor = 0.05
-    x_train_noisy = x_in + noise_factor * np.random.standard_t(df=3, size=x_in.shape)
+    noise_factor = 0.01
+    x_train_noisy = x_train + noise_factor * np.random.standard_t(df=3, size=x_train.shape)
      
     # encoding layers of desired depth
     for n in range(1, depth+1):
@@ -258,7 +257,7 @@ def autoencoded_portfolio(x, initial_weights, activation, depth, method):
     in_fraction=int(0.8*num_obs)
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
-    min_ret=0.1
+    min_ret=0.09
     
     r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
     sigma_in=np.cov(x_in,rowvar=False)
@@ -368,4 +367,4 @@ x = import_data('CDAX_without_penny_stocks')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
     #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
       
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(50, x)
+returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(1, x)
