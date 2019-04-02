@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 18 09:46:47 2019
-
 @author: plagl
 """
 
@@ -13,7 +12,6 @@ from keras.layers import Input, Dense, GaussianNoise
 from keras.models import Model, Sequential
 from scipy.optimize import minimize
 import figures as fg
-import read_data as read
 
 from keras.layers.advanced_activations import LeakyReLU, PReLU, ReLU, ELU
 from keras import regularizers
@@ -26,12 +24,12 @@ from sklearn.decomposition import PCA
 
 
 
-def import_data(index, risk_free_asset=True):
+def import_data(index):
     # location of the files 
     script_path = os.getcwd()
     os.chdir( script_path )
     file = './data/' + index + '.csv'
-    x = pd.read_csv(file, index_col=0)       
+    x=pd.read_csv(file, index_col=0)
     return x
 
 
@@ -42,6 +40,24 @@ def initialize_weights(num_stock):
       y0[i]=1/num_stock
     y0=np.matrix(y0)
     return y0
+
+
+def geometric_mean(x):  # not in use anymore  
+    num_col=len(x.columns)
+    num_rows=len(x.index)
+    r_avg=np.ones((1,num_col))
+    r_avg=np.matrix(r_avg)
+    for j in range(0,num_col):
+      ret=1
+      for i in range(0,num_rows):
+        ret= ret*(1+x.iloc[i,j])
+      r_avg[0,j]=ret**(1/num_rows)
+      #in case the average autoencoded returns are negative, we need to prevent a NaN 
+      if np.isnan(r_avg[0,j]):
+        ret=abs(ret)
+        r_avg[0,j]=-(ret**(1/(num_rows))) 
+    r_avg=r_avg-np.ones((num_col)) 
+    return r_avg
     
     
 def one_over_N(x):
@@ -74,13 +90,7 @@ def one_over_N(x):
     return returns_in, returns_oos, volatility_oos, sharpe_oos
     
 
-def mean_var_portfolio(x, y0, risk_free_asset=True):
-    # add column with risk-free asset returns if desired
-    if risk_free_asset:
-        mktrf, rf = read.get_rf()
-        x['RF'] = rf.values
-    
-    # split sample   
+def mean_var_portfolio(x, y0):
     num_obs=len(x.index)
     in_fraction=int(0.8*num_obs)
     x_in=x[:in_fraction]
@@ -116,10 +126,9 @@ def mean_var_portfolio(x, y0, risk_free_asset=True):
     weights_standard=np.asmatrix(solution.x)
     
     # out of sample performance
-    returns_standard=(1 + weights_standard*r_avg_oos.T)**252 - 1
-    rf_avg = rf.values[in_fraction:].mean()
+    returns_standard=(1 + weights_standard*r_avg_oos.T)**252 - 1      
     volatility_standard=np.sqrt(252 * weights_standard*sigma_oos*weights_standard.T)
-    sharpe_standard=(returns_standard-rf_avg)/volatility_standard
+    sharpe_standard=returns_standard/volatility_standard
     
     #print("returns standard:", returns_standard, "\nvolatility_standard:", volatility_standard, "\nsharpe_standard:", sharpe_standard)
     #print(weights_standard)
@@ -249,13 +258,7 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     return auto_data
     
     
-def autoencoded_portfolio(x, initial_weights, activation, depth, method, risk_free_asset=True):
-    # add column with risk-free asset returns if desired
-    if risk_free_asset:
-        mktrf, rf = read.get_rf()
-        x['RF'] = rf.values
-
-    #split sample
+def autoencoded_portfolio(x, initial_weights, activation, depth, method):
     num_obs=len(x.index)
     num_stock=len(x.columns)
     in_fraction=int(0.8*num_obs)
@@ -268,15 +271,9 @@ def autoencoded_portfolio(x, initial_weights, activation, depth, method, risk_fr
     sigma_oos=np.cov(x_oos,rowvar=False)
     
     # autoencoding in-sample data
-    auto_data = advanced_autoencoder(x_in=x_in.iloc[:, :num_stock], epochs=50, batch_size=32, \
+    auto_data = advanced_autoencoder(x_in=x_in, epochs=50, batch_size=32, \
                                      activations=activation, depth=depth, neurons=int(num_stock/2))
-    
-    # add column with risk-free asset returns back to auto-data
-    if risk_free_asset:
-        auto_data['RF'] = rf.values[:in_fraction]
-        #num_stock = num_stock + 1
 
-    
     # rescaling autoencoded data to original mean and variance
     if method == 'rescale':
         for i in range(0,num_stock):
@@ -323,10 +320,9 @@ def autoencoded_portfolio(x, initial_weights, activation, depth, method, risk_fr
     weights_auto=np.asmatrix(solution_auto.x)
     
     # evaluate out of sample performance
-    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1
-    rf_avg = rf.values[in_fraction:].mean()
+    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1 
     volatility_auto=np.sqrt(252 * weights_auto*sigma_oos*weights_auto.T) 
-    sharpe_auto=(returns_auto-rf_avg)/volatility_auto
+    sharpe_auto=returns_auto/volatility_auto
     
     #print(weights_auto)
     #print(sum(weights_auto))
@@ -335,7 +331,7 @@ def autoencoded_portfolio(x, initial_weights, activation, depth, method, risk_fr
     
       
 def run(x, num_trials=1):
-    y0 = initialize_weights(len(x.columns)+1)
+    y0 = initialize_weights(len(x.columns))
     
     # construct 1/N portfolio
     return_in, return_oos, volatility_oos, sharpe_oos = one_over_N(x)
@@ -354,7 +350,6 @@ def run(x, num_trials=1):
         for n in range(0, num_trials):
             returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, y0, 'lrelu', 2, 'original_variance')
             returns_a[n], volatility_a[n], sharpe_a[n] = returns_auto, volatility_auto, sharpe_auto
-        
     # average over the trials
     avg_return_a = sum(returns_a) / num_trials
     avg_vol_a = sum(volatility_a) / num_trials
@@ -380,41 +375,10 @@ def rolling_window(index, window_size):
     return results
 
 
-def sharpe_ratio(x):
-    mu=(1 + weights_standard*r_avg_oos.T)**252 - 1      
-    sigma=np.sqrt(252 * weights_standard*sigma_oos*weights_standard.T)
-    values = np.array([mu, sigma, mu / sigma ]).squeeze()
-    index = ['mu', 'sigma', 'SR']
-    return pd.Series(values, index=index)
 
-
-def bootstrap_performance(data, n):
-    # bootstrapping sharpe ratio - Work in Progress
-    bs = StationaryBootstrap(252, data)
-    results = bs.apply(sharpe_ratio, 2500)
-    SR = pd.DataFrame(results[:,-1:], columns=['SR'])
-    fig = SR.hist(bins=40)
-    return
     
 x = import_data('NASDAQ_without_penny_stocks')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
     #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
       
 returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(x,1)
-
-
-# expect to introduce a bias and reduce the varianc, use performance of portfolio as measure
-# can do some statistical tests, confidence interval for sharpe ratio and compare to standard mean-var portfolio
-# either reduce bias or variance
-# estimates sensitive to use of rolling windows etc. (outliers entering window)
-# denoising autoencoder is focused on reducing noise/variance of estimator
-# mean-var portfolio is subject to erratic changes in weights - more transaction costs
-# autoencoder reduces estimation variance, less extreme rebalancing, less turnover hopefully!
-# compute turnover
-# sharpe ratio relevant because investor wanted a certain sharpe ratio, tracking error
-# using autoencoder to reduce turnover/variance
-# CIs: bootstrapping samples or cross-validation to show significance, respecting sample properties, time series
-# use seed for keras, test significance over time
-# what are we estimating: mean&var or a portfolio??
-# portfolio mean and variance not the same as the ones we are estimating (individual asset returns and covariances)
-# in practice due to measurement error no direct link between the two

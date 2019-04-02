@@ -9,8 +9,7 @@ import numpy as np
 import pandas as pd
 import os
 from scipy import stats
-import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
+
 
 def get_returns(index, remove_penny_stocks=False, write=False):
     # Give the location of the file 
@@ -66,7 +65,6 @@ def get_rf(frequency='daily', descriptives=False):
     rf = df.filter(items=['rf'])
     mktrf = df.filter(items=['mktrf'])
     
-    
     # Compute descriptive statistics if desired
     if descriptives:
         print(rf.min())
@@ -106,32 +104,13 @@ def compute_descriptives(returns):
     print(skewness)
     print(kurtosis)
     print(jb)
-    
-def plot_data(data, title, ylabel):
-    """Plot stock prices with a custom title and meaningful axis labels."""
-    ax = data.mean(axis=1).plot(title=title, fontsize=12)
-    ax.set_xlabel("Date")
-    ax.set_ylabel(ylabel)
-    plt.show()
-    
-def plot_histogram(data):
-    daily_returns = data.values.flatten()
-    plt.hist(daily_returns, bins=5)
-    mean = daily_returns.mean()
-    std = daily_returns.std()
- 
-    plt.axvline(x=mean, color='r', linestyle='--')
-    plt.axvline(x=std, color='k', linestyle='--')
-    plt.axvline(x=-std, color='k', linestyle='--')
- 
-    plt.show()
+    return
     
    
-#prices, sizes, price_earnings, returns = get_returns('NASDAQ', remove_penny_stocks=False, write=False)
+#prices, sizes, price_earnings, returns = get_returns('CAC', remove_penny_stocks=False, write=False)
 #compute_descriptives(returns)
-
 #plot_histogram(returns)
     
-mktrf, rf = get_rf('daily', True)
+#mktrf, rf = get_rf('daily', True)
 
 

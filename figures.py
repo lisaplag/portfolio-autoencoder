@@ -56,3 +56,28 @@ def make_histogram(x, x_label, y, y_label):
     plt.legend([x_label, y_label])
     plt.show()
     return
+
+def plot_data(data, title, ylabel):
+    """Plot stock prices with a custom title and meaningful axis labels."""
+    ax = data.mean(axis=1).plot(title=title, fontsize=12)
+    ax.set_xlabel("Date")
+    ax.set_ylabel(ylabel)
+    plt.show()
+    return
+    
+def plot_histogram(data):
+    daily_returns = data.values.flatten()
+    plt.hist(daily_returns, bins=5)
+    mean = daily_returns.mean()
+    std = daily_returns.std()
+ 
+    plt.axvline(x=mean, color='r', linestyle='--')
+    plt.axvline(x=std, color='k', linestyle='--')
+    plt.axvline(x=-std, color='k', linestyle='--')
+    plt.show()
+    return
+
+
+    
+    
+    
