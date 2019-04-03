@@ -11,3 +11,5 @@ _You must have Python 3.6 installed (not lower or higher!)_
 
 - Run the tool in the IDE of your choice (tested in Spyder and PyCharm)
     - `autoencoder.py`
+
+Test
