@@ -31,8 +31,9 @@ def expanding_window(index, window_size, startup_period=504, min_ret=0.001):
     # Work in Progress
     data = import_data(index)
     T, N = data.shape
+    data = np.array(data)
     leftover = (T - startup_period) % window_size
-    startup_period = + leftover
+    startup_period += leftover
     M = int((T - startup_period) / window_size)
     R_o_portfolio = np.empty(0)
     R_a_portfolio = np.empty(0)
@@ -42,29 +43,28 @@ def expanding_window(index, window_size, startup_period=504, min_ret=0.001):
     MSFE_a = 0
     for m in range(M):
         t = startup_period + m * window_size
-        R_m = data.iloc[t:t + window_size]
-        mu_m, Sigma_m = R_m.mean(0), R_m.cov()
+        R_m = data[t:t + window_size]
+        mu_m, Sigma_m = np.mean(R_m, 0), np.cov(np.transpose(R_m))
 
-        R_o = data.iloc[:t]
-        mu_o, Sigma_o = R_o.mean(0), R_o.cov()
-        MSFE_o = + np.mean((np.triu(Sigma_o - Sigma_m)) ** 2)
+        R_o = data[:t]
+        mu_o, Sigma_o = np.mean(R_m, 0), np.cov(np.transpose(R_o))
+        MSFE_o += np.mean((np.triu(Sigma_o - Sigma_m)) ** 2)
         w_o = MVO(mu_o, Sigma_o, min_ret)
         R_o_m = R_m @ w_o
         R_o_portfolio = np.append(R_o_portfolio, R_o_m)
 
         R_a = autoencoder_window(R_o)
-        mu_a, Sigma_a = R_a.mean(0), R_a.cov()
-        MSFE_a = + np.mean((np.triu(Sigma_a - Sigma_m)) ** 2)
+        mu_a, Sigma_a = np.mean(R_a, 0), np.cov(np.transpose(R_a))
+        MSFE_a += np.mean((np.triu(Sigma_a - Sigma_m)) ** 2)
         w_a = MVO(mu_a, Sigma_a, min_ret)
         R_a_m = R_m @ w_a
         R_a_portfolio = np.append(R_a_portfolio, R_a_m)
 
-
-    print('day: ', t)
-    print('Cumulative returns of original portfolio:', np.sum(R_o_portfolio))
-    print('Cumulative returns of autoencoded portfolio', np.sum(R_a_portfolio))
-    print('MSFE_o: ', MSFE_o)
-    print('MSFE_a: ', MSFE_a)
+        print('day: ', t)
+        print('Cumulative returns of original portfolio:', np.sum(R_o_portfolio))
+        print('Cumulative returns of autoencoded portfolio', np.sum(R_a_portfolio))
+        print('MSFE_o: ', MSFE_o)
+        print('MSFE_a: ', MSFE_a)
 
 
 def autoencoder_window(x_in):
@@ -78,7 +78,7 @@ def autoencoder_window(x_in):
     model = Model(inputs=inputs, outputs=outputs)
     model.compile(optimizer='adam', loss='mae')
     model.fit(x_in, x_in, batch_size=32, epochs=70, verbose=0)
-    x_fitted = pd.DataFrame(model.predict(x_in))
+    x_fitted = model.predict(x_in)
     return x_fitted
 
 def MVO(mu, Sigma, min_ret):
