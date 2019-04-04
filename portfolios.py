@@ -6,6 +6,7 @@ Created on Mon Mar 18 09:46:47 2019
 """
 
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize
 import read_data as data
 import autoencoder as auto
@@ -119,7 +120,7 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
     min_ret=0.1
-    
+   
     # compute original mean and covariance matrix
     r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
     sigma_in=np.cov(x_in,rowvar=False)
@@ -134,6 +135,8 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
         mktrf, rf = data.get_rf()
         auto_data['RF'] = rf.values[:in_fraction]
         rf_oos = rf.values[in_fraction:]
+        x_oos['RF'] = rf_oos
+        #x_oos = pd.concat([pd.DataFrame(x_oos),pd.DataFrame(rf_oos)],axis=1)
         num_stock = num_stock + 1
     else:
         rf_oos = 0
@@ -172,26 +175,16 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     solution_auto = minimize(objective_auto,y0,method='SLSQP',\
                              bounds=bnds,constraints=cons_auto)
     weights_auto=np.asmatrix(solution_auto.x)
-
-    
-#    if risk_free_asset:
-#            rf_avg = np.asmatrix(np.mean(rf.values[in_fraction:], axis=0))
-#            returns_rf = (1 + sum(rf_avg))**252 - 1
-#    else:
-#        returns_rf = 0 
-#        
-#    # evaluate out of sample performance
-#    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1
-#    volatility_auto=np.sqrt(252 * weights_auto*sigma_oos*weights_auto.T) 
-#    sharpe_auto=(returns_auto-returns_rf)/volatility_auto    
     
     # out of sample performance
-    r_portf_oos=np.matmul(weights_auto,x_oos.T)
+    r_portf_oos=np.matmul(weights_auto,x_oos.values.T)
     r_excess_oos=r_portf_oos-rf_oos
     r_excess_avg_oos=np.mean(r_excess_oos)
     sigma_oos=np.std(r_excess_oos)
+    print(r_portf_oos)
+    print(r_excess_avg_oos)
     
-    r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
+    r_avg_oos=np.asmatrix(np.mean(x_oos.values, axis=0))
     returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1 
     target=(1 + weights_auto*auto_r_avg.T)**252 - 1
     print('In-sample return:', target)
@@ -212,7 +205,7 @@ def run(x, num_trials=1):
     return_in, return_oos, volatility_oos, sharpe_oos = one_over_N(x)
     
     # construct standard mean-variance portfolio
-    return_s, volatility_s, sharpe_s = mean_var_portfolio(x)
+    #return_s, volatility_s, sharpe_s = mean_var_portfolio(x)
     
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
