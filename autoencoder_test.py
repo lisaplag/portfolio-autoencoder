@@ -339,6 +339,7 @@ def run(x, num_trials=1):
     # construct standard mean-variance portfolio
     return_s, volatility_s, sharpe_s = mean_var_portfolio(x, y0)
     
+    np.random.seed(1) # using random seed to get reproducible result 
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
         np.random.seed(1) # using random seed to get reproducible result
