@@ -47,7 +47,7 @@ def one_over_N(x):
     return returns_in, returns_oos, volatility_oos, sharpe_oos
     
 
-def mean_var_portfolio(x, risk_free_asset=False):
+def mean_var_portfolio(x, risk_free_asset=True):
     num_obs=len(x.index)
     in_fraction=int(0.8*num_obs)
     
@@ -55,10 +55,6 @@ def mean_var_portfolio(x, risk_free_asset=False):
     if risk_free_asset:
         mktrf, rf = data.get_rf()
         x['RF'] = rf.values
-        rf_avg_oos = np.asmatrix(np.mean(rf.values[in_fraction:], axis=0))
-        returns_rf = (1 + sum(rf_avg_oos))**252 - 1
-    else:
-        returns_rf = 0
     
     # split sample   
     x_in=x[:in_fraction]
@@ -66,13 +62,10 @@ def mean_var_portfolio(x, risk_free_asset=False):
     num_stock=len(x.columns)
     min_ret=0.1 
     
-    y0 = initialize_weights(num_stock)
-    
     #construct mean-variance portfolios
+    y0 = initialize_weights(num_stock)
     r_avg=np.asmatrix(np.mean(x_in, axis=0))
-    r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
-    sigma_oos=np.cov(x_oos,rowvar=False)
-    sigma=np.cov(x_in, rowvar=False)
+    sigma=np.cov(x_in, rowvar=False) 
     
     # maximize returns given a certain volatility
     def objective_standard(y):
@@ -94,9 +87,15 @@ def mean_var_portfolio(x, risk_free_asset=False):
     solution = minimize(objective_standard,y0,method='SLSQP',\
                         bounds=bnds,constraints=cons)
     weights_standard=np.asmatrix(solution.x)
+
+    #construct mean-variance portfolios
+    r_portf_oos=np.matmul(weights_standard,x_oos.T)
+    r_avg_oos=np.asmatrix(np.mean(r_portf_oos-rf, axis=0))
+    print(r_portf_oos)
+    sigma_oos=np.cov(x_oos,rowvar=False)
     
     # out of sample performance
-    returns_standard=(1 + weights_standard*r_avg_oos.T)**252 - 1
+    returns_standard=(1 + r_avg_oos)**252 - 1
     volatility_standard=np.sqrt(252 * weights_standard*sigma_oos*weights_standard.T)
     sharpe_standard=(returns_standard-returns_rf)/volatility_standard
     
@@ -193,7 +192,8 @@ def run(x, num_trials=1):
     
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
-        returns_a, volatility_a, sharpe_a, auto_data = autoencoded_portfolio(x, 'lrelu', 2, 'original_variance')
+        returns_a, volatility_a, sharpe_a, auto_data = 0
+        #autoencoded_portfolio(x, 'lrelu', 2, 'original_variance')
     else:
         returns_a = np.zeros(num_trials)
         volatility_a = np.zeros(num_trials)
@@ -212,7 +212,7 @@ def run(x, num_trials=1):
  
     
 
-x = data.import_data('CDAX_without_penny_stocks')
+x = data.import_data('NASDAQ_without_penny_stocks')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
 #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
       
