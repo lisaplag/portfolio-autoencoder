@@ -55,12 +55,13 @@ def mean_var_portfolio(x, risk_free_asset=True):
     if risk_free_asset:
         mktrf, rf = data.get_rf()
         x['RF'] = rf.values
+        rf_oos = rf.values[in_fraction:]
     
     # split sample   
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
     num_stock=len(x.columns)
-    min_ret=0.1 
+    min_ret=0.1
     
     #construct mean-variance portfolios
     y0 = initialize_weights(num_stock)
@@ -88,24 +89,29 @@ def mean_var_portfolio(x, risk_free_asset=True):
                         bounds=bnds,constraints=cons)
     weights_standard=np.asmatrix(solution.x)
 
-    #construct mean-variance portfolios
-    r_portf_oos=np.matmul(weights_standard,x_oos.T)
-    r_avg_oos=np.asmatrix(np.mean(r_portf_oos-rf, axis=0))
-    print(r_portf_oos)
-    sigma_oos=np.cov(x_oos,rowvar=False)
-    
     # out of sample performance
-    returns_standard=(1 + r_avg_oos)**252 - 1
-    volatility_standard=np.sqrt(252 * weights_standard*sigma_oos*weights_standard.T)
-    sharpe_standard=(returns_standard-returns_rf)/volatility_standard
+    r_portf_oos=np.matmul(weights_standard,x_oos.T)
+    r_excess_oos=r_portf_oos-rf_oos
+    r_excess_avg_oos=np.mean(r_excess_oos)
+    sigma_oos=np.std(r_excess_oos)
+    
+    r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
+    returns_standard=(1 + weights_standard*r_avg_oos.T)**252 - 1 
+    target=(1 + weights_standard*r_avg.T)**252 - 1
+    print('In-sample return:', target)
+    print('Out-of-sample return:', returns_standard)
+
+    excess_returns_standard=(1 + r_excess_avg_oos)**252 - 1
+    volatility_standard=np.sqrt(252)*sigma_oos
+    sharpe_standard=returns_standard/volatility_standard
     
     #print(weights_standard)
     #print(sum(weights_standard))
-    return returns_standard, volatility_standard, sharpe_standard
+    return excess_returns_standard, volatility_standard, sharpe_standard
 
     
     
-def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=False):
+def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     # split sample
     num_obs=len(x.index)
     num_stock=len(x.columns)
@@ -114,7 +120,7 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=False):
     x_oos=x[in_fraction:]
     min_ret=0.1
     
-    # compute mean and covariance matrix
+    # compute original mean and covariance matrix
     r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
     sigma_in=np.cov(x_in,rowvar=False)
     sigma_oos=np.cov(x_oos,rowvar=False)
@@ -127,10 +133,11 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=False):
     if risk_free_asset:
         mktrf, rf = data.get_rf()
         auto_data['RF'] = rf.values[:in_fraction]
+        rf_oos = rf.values[in_fraction:]
         num_stock = num_stock + 1
+    else:
+        rf_oos = 0
         
-    y0 = initialize_weights(num_stock)
-
     # set diagonal elements of autoencoded data covariance matrix equal to original variance
     if method == 'original_variance':
         auto_r_avg=np.mean(auto_data, axis=0)
@@ -143,6 +150,7 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=False):
         auto_sigma=np.cov(auto_data, rowvar=False)
         
     auto_r_avg=np.asmatrix(auto_r_avg)
+    y0 = initialize_weights(num_stock)
     
     # minimize volatility given target return
     def objective_auto(y):
@@ -164,22 +172,38 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=False):
     solution_auto = minimize(objective_auto,y0,method='SLSQP',\
                              bounds=bnds,constraints=cons_auto)
     weights_auto=np.asmatrix(solution_auto.x)
+
     
-    if risk_free_asset:
-            rf_avg = np.asmatrix(np.mean(rf.values[in_fraction:], axis=0))
-            returns_rf = (1 + sum(rf_avg))**252 - 1
-    else:
-        returns_rf = 0
-        
-        
-    # evaluate out of sample performance
-    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1
-    volatility_auto=np.sqrt(252 * weights_auto*sigma_oos*weights_auto.T) 
-    sharpe_auto=(returns_auto-returns_rf)/volatility_auto
+#    if risk_free_asset:
+#            rf_avg = np.asmatrix(np.mean(rf.values[in_fraction:], axis=0))
+#            returns_rf = (1 + sum(rf_avg))**252 - 1
+#    else:
+#        returns_rf = 0 
+#        
+#    # evaluate out of sample performance
+#    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1
+#    volatility_auto=np.sqrt(252 * weights_auto*sigma_oos*weights_auto.T) 
+#    sharpe_auto=(returns_auto-returns_rf)/volatility_auto    
+    
+    # out of sample performance
+    r_portf_oos=np.matmul(weights_auto,x_oos.T)
+    r_excess_oos=r_portf_oos-rf_oos
+    r_excess_avg_oos=np.mean(r_excess_oos)
+    sigma_oos=np.std(r_excess_oos)
+    
+    r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
+    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1 
+    target=(1 + weights_auto*auto_r_avg.T)**252 - 1
+    print('In-sample return:', target)
+    print('Out-of-sample return:', returns_auto)
+
+    excess_returns_auto=(1 + r_excess_avg_oos)**252 - 1
+    volatility_auto=np.sqrt(252)*sigma_oos
+    sharpe_auto=returns_auto/volatility_auto
     
     #print(weights_auto)
     #print(sum(weights_auto))
-    return returns_auto, volatility_auto, sharpe_auto, auto_data
+    return excess_returns_auto, volatility_auto, sharpe_auto, auto_data
     
       
 
@@ -192,8 +216,7 @@ def run(x, num_trials=1):
     
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
-        returns_a, volatility_a, sharpe_a, auto_data = 0
-        #autoencoded_portfolio(x, 'lrelu', 2, 'original_variance')
+        returns_a, volatility_a, sharpe_a, auto_data = autoencoded_portfolio(x, 'lrelu', 2, 'original_variance')
     else:
         returns_a = np.zeros(num_trials)
         volatility_a = np.zeros(num_trials)
