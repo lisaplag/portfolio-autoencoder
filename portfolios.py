@@ -205,7 +205,7 @@ def run(x, num_trials=1):
     return_in, return_oos, volatility_oos, sharpe_oos = one_over_N(x)
     
     # construct standard mean-variance portfolio
-    #return_s, volatility_s, sharpe_s = mean_var_portfolio(x)
+    return_s, volatility_s, sharpe_s = mean_var_portfolio(x)
     
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
