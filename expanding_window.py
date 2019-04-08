@@ -27,7 +27,6 @@ def import_data(index, risk_free_asset=True):
     return x
 
 def expanding_window(index, window_size, startup_period=504, min_ret=0.001):
-    # use rolling window only to reestimate portfolio weights, not to train autoencoder again
     # Work in Progress
     data = import_data(index)
     T, N = data.shape
@@ -48,21 +47,25 @@ def expanding_window(index, window_size, startup_period=504, min_ret=0.001):
 
         R_o = data[:t]
         mu_o, Sigma_o = np.mean(R_m, 0), np.cov(np.transpose(R_o))
-        MSFE_o += np.mean((np.triu(Sigma_o - Sigma_m)) ** 2)
+        MSFE_o += np.mean((np.triu(Sigma_o - Sigma_m, 1)) ** 2)
         w_o = MVO(mu_o, Sigma_o, min_ret)
         R_o_m = R_m @ w_o
         R_o_portfolio = np.append(R_o_portfolio, R_o_m)
 
         R_a = autoencoder_window(R_o)
         mu_a, Sigma_a = np.mean(R_a, 0), np.cov(np.transpose(R_a))
-        MSFE_a += np.mean((np.triu(Sigma_a - Sigma_m)) ** 2)
-        w_a = MVO(mu_a, Sigma_a, min_ret)
+        Omega = adaptive_threshold(R_a, R_o-R_a, 0.1)
+        Sigma_a = Sigma_a + Omega
+        MSFE_a += np.mean((np.triu(Sigma_a - Sigma_m, 1)) ** 2)
+        w_a = MVO(mu_o, Sigma_a, min_ret)
         R_a_m = R_m @ w_a
         R_a_portfolio = np.append(R_a_portfolio, R_a_m)
 
         print('day: ', t)
         print('Cumulative returns of original portfolio:', np.sum(R_o_portfolio))
         print('Cumulative returns of autoencoded portfolio', np.sum(R_a_portfolio))
+        print('Volatility_o: ', np.std(R_o_portfolio))
+        print('Volatility_a: ', np.std(R_a_portfolio))
         print('MSFE_o: ', MSFE_o)
         print('MSFE_a: ', MSFE_a)
 
@@ -101,6 +104,22 @@ def MVO(mu, Sigma, min_ret):
     solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons)
     weights = solution.x
     return weights
+
+def adaptive_threshold(R, e, tau):
+    Rcov = np.cov(np.transpose(R))
+    ecov = np.cov(np.transpose(e))
+    N = Rcov.shape[0]
+    adapted_ecov = ecov.copy()
+    for i in range(N):
+        for j in range(N):
+            if i == j:
+                continue
+            else:
+                e1e2 = e[:,i] * e[:,j]
+                theta = e1e2.var()
+                if e1e2.mean() < np.sqrt(theta)*tau:
+                    adapted_ecov[i,j] = 0
+    return adapted_ecov
 
 x = import_data('NASDAQ_without_penny_stocks')
 index = 'NASDAQ_without_penny_stocks'
