@@ -9,13 +9,13 @@ import numpy as np
 import tensorflow as tf
 import random as rn
 
-np.random.seed(42)
-rn.seed(12345)
+np.random.seed(3)
+rn.seed(3)
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
 
 from keras import backend as K
-tf.set_random_seed(1234)
+tf.set_random_seed(3)
 
 
 import pandas as pd
@@ -154,8 +154,7 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
 
     #CLOSE TF SESSION
     K.clear_session()
-    #with pd.option_context('display.max_rows', 25, 'display.max_columns', None):
-    #print(auto_data)
+
     return auto_data
     
     
