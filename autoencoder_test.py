@@ -339,6 +339,7 @@ def run(x, num_trials=1):
     # construct standard mean-variance portfolio
     return_s, volatility_s, sharpe_s = mean_var_portfolio(x, y0)
     
+    np.random.seed(1) # using random seed to get reproducible result 
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
         np.random.seed(1) # using random seed to get reproducible result
@@ -377,7 +378,7 @@ def rolling_window(index, window_size):
 
 
     
-x = import_data('NASDAQ_without_penny_stocks')
+x = import_data('CAC_without_penny_stocks')
 #returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
     #encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
       

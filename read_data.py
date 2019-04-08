@@ -5,7 +5,6 @@ Created on Tue Mar 12 09:23:08 2019
 @author: plagl
 """
 
-import numpy as np
 import pandas as pd
 import os
 from scipy import stats
@@ -76,6 +75,17 @@ def get_rf(frequency='daily', descriptives=False):
         print(stats.jarque_bera(rf))
     
     return mktrf, rf
+
+
+
+def import_data(index):
+    # location of the files 
+    script_path = os.getcwd()
+    os.chdir( script_path )
+    file = './data/' + index + '.csv'
+    x = pd.read_csv(file, index_col=0)       
+    return x
+
 
 
 def join_risky_with_riskless(risky, riskless):
