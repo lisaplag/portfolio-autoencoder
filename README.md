@@ -10,5 +10,5 @@ _You must have Python 3.6 installed (not lower or higher!)_
     - `pip install -r requirements.txt`
 
 - Run the tool in the IDE of your choice (tested in Spyder and PyCharm)
-    - `autoencoder.py`
+    - `portfolios.py`
     
