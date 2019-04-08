@@ -137,11 +137,12 @@ s=500
 
 different_depths=[1,2,3,4,5]
 different_neurons=[50,40,30]
+# creating 4-dim result array for different depths, neurons, tests and iterations
 results=np.zeros((5,3,5,20))
 
 # loop over different autoencoders
 counter=120
-for i in range(2,5):
+for i in range(0,5):
   for j in range(0,3):
     np.random.seed(1)
     rn.seed(12345)        
