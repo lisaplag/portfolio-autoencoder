@@ -123,9 +123,9 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     
 
 dataset = data.import_data('CDAX_without_penny_stocks')
-np.random.seed(1)
-rn.seed(12345)        
-tf.set_random_seed(1234)
+np.random.seed(11)
+rn.seed(123451)        
+tf.set_random_seed(12341)
 
 num_obs=dataset.shape[0]
 
@@ -147,9 +147,9 @@ results=np.zeros((5,3,5,20))
 counter=120
 for i in range(0,5):
   for j in range(0,3):
-    np.random.seed(1)
-    rn.seed(12345)        
-    tf.set_random_seed(1234)
+    np.random.seed(11)
+    rn.seed(123451)        
+    tf.set_random_seed(12341)
     for k in range(0,20):
       results[i,j,:,k]=advanced_autoencoder(x_in,1000,10,'elu',different_depths[i],different_neurons[j])
       print(results[i,j,:,k])
@@ -179,14 +179,7 @@ pesaran_counter=0
 portmanteau1_counter=0
 portmanteau3_counter=0
 portmanteau5_counter=0
-portmanteau_stats=np.zeros((1,7))
-for i in range(0,300):
-    if abs((test_stats[i,4]-portmanteau_mean1)/portmanteau_stdev1)<z_bound:
-        portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
-    elif abs((test_stats[i,5]-portmanteau_mean2)/portmanteau_stdev2)<z_bound:
-        portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
-    elif abs((test_stats[i,6]-portmanteau_mean3)/portmanteau_stdev3)<z_bound:
-        portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
+
 for i in range(0,300):
     if test_stats[i,2]<chi2_bound:
         significant_stats=np.concatenate((significant_stats,np.matrix(test_stats[i,:])),axis=0)

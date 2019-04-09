@@ -78,7 +78,7 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
             autoencoder.add(Dense(int(neurons/n), input_shape=(num_stock,)))
             autoencoder.add(function)
         else:            
-            autoencoder.add(Dense(int(neurons/n)))
+            autoencoder.add(Dense(int(neurons/np.power(2,n))))
             autoencoder.add(function)
     # decoding layers of desired depth
     for n in range(depth, 1, -1):
@@ -141,22 +141,22 @@ s=500
 
 different_depths=[1,2,3,4,5]
 different_neurons=[120,100,80]
-results=np.zeros((5,3,5,20))
+results=np.zeros((1,1,5,20))
 
 # loop over different autoencoders
-counter=120
-for i in range(0,5):
-  for j in range(0,3):
+counter=0
+for i in range(3,4):
+  for j in range(1,2):
     np.random.seed(1)
     rn.seed(12345)        
     tf.set_random_seed(1234)
     for k in range(0,20):
-      results[i,j,:,k]=advanced_autoencoder(x_in,1000,10,'elu',different_depths[i],different_neurons[j])
-      print(results[i,j,:,k])
+      results[i-3,j-1,:,k]=advanced_autoencoder(x_in,1000,10,'elu',different_depths[i],different_neurons[j])
+      print(results[i-3,j-1,:,k])
       counter=counter+1
       print(counter)
 coun=0   
-test_stats=np.zeros((300,7))
+test_stats=np.zeros((40,7))
 for i in range(0,5):
     for j in range(0,3):
         for k in range(0,20):
@@ -179,15 +179,8 @@ pesaran_counter=0
 portmanteau1_counter=0
 portmanteau3_counter=0
 portmanteau5_counter=0
-portmanteau_stats=np.zeros((1,7))
-for i in range(0,300):
-    if abs((test_stats[i,4]-portmanteau_mean1)/portmanteau_stdev1)<z_bound:
-        portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
-    elif abs((test_stats[i,5]-portmanteau_mean2)/portmanteau_stdev2)<z_bound:
-        portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
-    elif abs((test_stats[i,6]-portmanteau_mean3)/portmanteau_stdev3)<z_bound:
-        portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
-for i in range(0,300):
+
+for i in range(0,40):
     if test_stats[i,2]<chi2_bound:
         significant_stats=np.concatenate((significant_stats,np.matrix(test_stats[i,:])),axis=0)
         chi_counter=chi_counter+1    
@@ -209,7 +202,7 @@ for i in range(0,300):
         portmanteau5_counter=portmanteau5_counter+1
 
 significant_stats2=np.zeros((1,7))
-for i in range(0,300):
+for i in range(0,40):
     if test_stats[i,2]<chi2_bound:
         significant_stats2=np.concatenate((significant_stats2,np.matrix(test_stats[i,:])),axis=0)   
     elif abs(test_stats[i,3])<z_bound:
