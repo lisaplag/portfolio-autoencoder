@@ -46,14 +46,13 @@ def one_over_N(x, risk_free_asset=False):
     y0 = initialize_weights(num_stock)
 
     # in sample performance
-    returns_in=(1 + y0*r_avg.T)**252 - 1
-    
-    r_portf_oos=np.matmul(y0,x_oos.values.T)
-    r_excess_oos=r_portf_oos-rf_oos
+    returns_in=(1 + y0@r_avg.T)**252 - 1
     
     # out of sample performance
-    returns_oos=(1+ y0*r_avg_oos.T)**252 - 1     
-    volatility_oos=np.sqrt(252 * y0*sigma_oos*y0.T)
+    r_portf_oos=y0@x_oos.values.T
+    r_excess_oos=r_portf_oos-rf_oos
+    returns_oos=(1+ y0@r_avg_oos.T)**252 - 1     
+    volatility_oos=np.sqrt(252 * y0@sigma_oos@y0.T)
     sharpe_oos=returns_oos/volatility_oos
     
     print("returns in sample:", returns_in, "\nreturns out of sample:", returns_oos)
@@ -85,13 +84,13 @@ def mean_var_portfolio(x, risk_free_asset=True):
     # maximize returns given a certain volatility
     def objective_standard(y):
         y=np.asmatrix(y)
-        return np.sum(np.sqrt(252 * y*sigma*y.T))
+        return np.sum(np.sqrt(252 * y@sigma@y.T))
     def constraint1(y):
         y=np.asmatrix(y)
         return np.sum(y) - 1
     def constraint2(y):
         y=np.asmatrix(y)
-        return np.sum((1 + y*r_avg.T)**252 - 1) - (min_ret)
+        return np.sum((1 + y@r_avg.T)**252 - 1) - (min_ret)
       
     # optimize
     b = [0,1] #bounds
@@ -107,18 +106,18 @@ def mean_var_portfolio(x, risk_free_asset=True):
     r_portf_oos=np.matmul(weights_standard,x_oos.T)
     r_excess_oos=r_portf_oos-rf_oos
     r_excess_avg_oos=np.mean(r_excess_oos)
+    r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
     sigma_oos=np.std(r_excess_oos)
     
-    r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
-    returns_standard=(1 + weights_standard*r_avg_oos.T)**252 - 1 
-    target=(1 + weights_standard*r_avg.T)**252 - 1
-    print('In-sample return:', target)
-    print('Out-of-sample return:', returns_standard)
+    returns_standard=(1 + weights_standard@r_avg_oos.T)**252 - 1 
+    target=(1 + weights_standard@r_avg.T)**252 - 1
 
     excess_returns_standard=(1 + r_excess_avg_oos)**252 - 1
     volatility_standard=np.sqrt(252)*sigma_oos
-    sharpe_standard=returns_standard/volatility_standard
+    sharpe_standard=excess_returns_standard/volatility_standard
     
+    print('In-sample return:', target)
+    print('Out-of-sample return:', returns_standard)
     #print(weights_standard)
     #print(sum(weights_standard))
     return excess_returns_standard, volatility_standard, sharpe_standard, r_portf_oos, r_excess_oos
@@ -171,13 +170,13 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     # minimize volatility given target return
     def objective_auto(y):
         y=np.asmatrix(y)
-        return np.sum(np.sqrt(252 * y*auto_sigma*y.T)) 
+        return np.sum(np.sqrt(252 * y@auto_sigma@y.T)) 
     def constraint1(y):
         y=np.asmatrix(y)
         return np.sum(y)-1
     def constraint2_auto(y):
         y=np.asmatrix(y)
-        return np.sum((1+ y*auto_r_avg.T )**252 - 1) - (min_ret)
+        return np.sum((1+ y@auto_r_avg.T )**252 - 1) - (min_ret)
     
     # optimize
     b = [0,1] #bounds
@@ -190,28 +189,28 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     weights_auto=np.asmatrix(solution_auto.x)
     
     # out of sample performance
-    r_portf_oos=np.matmul(weights_auto,x_oos.values.T)
+    r_portf_oos=weights_auto@x_oos.values.T
     r_excess_oos=r_portf_oos-rf_oos
     r_excess_avg_oos=np.mean(r_excess_oos)
+    r_avg_oos=np.asmatrix(np.mean(x_oos.values, axis=0))
     sigma_oos=np.std(r_excess_oos)
     
-    r_avg_oos=np.asmatrix(np.mean(x_oos.values, axis=0))
-    returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1 
-    target=(1 + weights_auto*auto_r_avg.T)**252 - 1
-    print('In-sample return:', target)
-    print('Out-of-sample return:', returns_auto)
+    returns_auto=(1 + weights_auto@r_avg_oos.T)**252 - 1 
+    target=(1 + weights_auto@auto_r_avg.T)**252 - 1
 
     excess_returns_auto=(1 + r_excess_avg_oos)**252 - 1
     volatility_auto=np.sqrt(252)*sigma_oos
-    sharpe_auto=returns_auto/volatility_auto
+    sharpe_auto=excess_returns_auto/volatility_auto
     
+    print('In-sample return:', target)
+    print('Out-of-sample return:', returns_auto)
     #print(weights_auto)
     #print(sum(weights_auto))
     return excess_returns_auto, volatility_auto, sharpe_auto, auto_data, r_portf_oos, r_excess_oos
     
       
 
-def run(x, num_trials=1):
+def run(x, index, num_trials=1, write=False):
     # construct 1/N portfolio
     return_in, return_oos, volatility_oos, sharpe_oos, r_portf_n, r_excess_n = one_over_N(x)
     
@@ -234,21 +233,28 @@ def run(x, num_trials=1):
     print("\nreturns standard:", return_s, "\nvolatility standard:", volatility_s, "\nsharpe standard:", sharpe_s)
     print("\nreturns auto:", returns_a, "\nvolatility auto:", volatility_a, "\nsharpe auto:", sharpe_a)
     
+    if write:
+        r_excess = np.concatenate((r_excess_n.T, r_excess_s.T, r_excess_a.T),axis=1)
+        r_excess = pd.DataFrame(r_excess, index=x[int(0.5*len(x.index)):].index, columns=['1/N', 'Standard', 'Autoencoder'])
+
+        r_portf = np.concatenate((r_portf_n.T, r_portf_s.T, r_portf_a.T),axis=1)
+        r_portf = pd.DataFrame(r_portf, index=x[int(0.5*len(x.index)):].index, columns=['1/N', 'Standard', 'Autoencoder'])
+        
+        r_excess.to_csv('./data/results/' + index + '_excess_returns.csv')
+        r_portf.to_csv('./data/results/' + index + '_portfolio_returns.csv')
+        
     return r_portf_n.T, r_excess_n.T, r_portf_s.T, r_excess_s.T, r_portf_a.T, r_excess_a.T
 
  
     
 # get out-of-sample return vectors
-returns = data.import_data('CDAX_without_penny_stocks')
+index = 'CDAX'
+returns = data.import_data(index + '_without_penny_stocks')
 mktrf, rf = data.get_rf('daily')
 x = data.join_risky_with_riskless(returns, rf)
-      
-r_portf_n, r_excess_n, r_portf_s, r_excess_s, r_portf_a, r_excess_a = run(x,1)
+     
+r_portf_n, r_excess_n, r_portf_s, r_excess_s, r_portf_a, r_excess_a = run(x,index,1,True)
 
-
-
-
-r_excess_s.to_csv('./data/results/' + index + '_excess_returns_standard.csv')
 
 
 
