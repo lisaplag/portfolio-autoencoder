@@ -234,12 +234,12 @@ def run(x, num_trials=1):
     print("\nreturns standard:", return_s, "\nvolatility standard:", volatility_s, "\nsharpe standard:", sharpe_s)
     print("\nreturns auto:", returns_a, "\nvolatility auto:", volatility_a, "\nsharpe auto:", sharpe_a)
     
-    return r_portf_n, r_excess_n, r_portf_s, r_excess_s, r_portf_a, r_excess_a
+    return r_portf_n.T, r_excess_n.T, r_portf_s.T, r_excess_s.T, r_portf_a.T, r_excess_a.T
 
  
     
 # get out-of-sample return vectors
-returns = data.import_data('CAC_without_penny_stocks')
+returns = data.import_data('CDAX_without_penny_stocks')
 mktrf, rf = data.get_rf('daily')
 x = data.join_risky_with_riskless(returns, rf)
       
@@ -248,6 +248,7 @@ r_portf_n, r_excess_n, r_portf_s, r_excess_s, r_portf_a, r_excess_a = run(x,1)
 
 
 
+r_excess_s.to_csv('./data/results/' + index + '_excess_returns_standard.csv')
 
 
 
