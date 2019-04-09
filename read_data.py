@@ -92,8 +92,6 @@ def join_risky_with_riskless(risky, riskless):
     # replacing missing data for riskless asset with last available value
     risky.index = pd.to_datetime(risky.index)
     risky = risky.rename_axis('date')
-
-    #merged = pd.merge(risky, riskless, on='key').drop('key',axis=1)
     merged = pd.merge_asof(risky, riskless.sort_values('date'), on='date')
     merged.index = merged['date']
     merged = merged.drop(['date'], axis = 1)          
@@ -124,10 +122,10 @@ def compute_descriptives(returns):
 #prices, sizes, price_earnings, returns = get_returns('CAC', remove_penny_stocks=False, write=False)
 #compute_descriptives(returns)
 #plot_histogram(returns)
-returns = import_data('CAC_without_penny_stocks')
-mktrf, rf = get_rf('daily', False)
+#returns = import_data('CAC_without_penny_stocks')
+#mktrf, rf = get_rf('daily', True)
 
-merged = join_risky_with_riskless(returns, rf)
+#merged = join_risky_with_riskless(returns, rf)
 
 
 

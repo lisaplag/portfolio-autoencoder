@@ -8,6 +8,7 @@ Created on Thu Mar 28 12:59:56 2019
 import matplotlib.pyplot as plt
 import matplotlib.mlab as mlab
 import numpy as np
+import pandas as pd
 
 def plot_loss(history):
     # summarize history for loss
@@ -32,15 +33,23 @@ def plot_accuracy(history):
     return
     
 def plot_two_series(x, x_label, y, y_label):
-    # plot the series
-    plt.figure(figsize=(10, 4), dpi=80)
-    plt.plot(x.mean(axis=1), label=x_label)
-    plt.plot(y.mean(axis=1), label=y_label)
-    plt.xlabel('Date')
-    plt.ylabel('Return')
-    plt.legend([x_label, y_label], loc='upper left')
-    plt.xticks(np.arange(1, len(x.index), 252*2))
-    plt.show()
+    #    # plot the series
+#    plt.figure(figsize=(10, 4), dpi=80)
+#    plt.plot(x.mean(axis=1), label=x_label)
+#    plt.plot(y.mean(axis=1), label=y_label)
+#    plt.xlabel('Date')
+#    plt.ylabel('Return')
+#    plt.legend([x_label, y_label], loc='upper left')
+#    plt.xticks(np.arange(1, len(x.index), 252*2))
+#    plt.show()
+    
+    z = x.mean(axis=1)
+    z = z.to_frame()
+    z.rename(columns={0:x_label}, inplace=True)
+    z[y_label] = y.mean(axis=1).values
+#    z.index = pd.to_datetime(z.index)
+#    z = z.rename_axis('date')
+    z.plot()
     return
     
 def make_histogram(x, x_label, y, y_label):

@@ -54,10 +54,11 @@ def mean_var_portfolio(x, risk_free_asset=True):
     
     # add column with risk-free asset returns if desired
     if risk_free_asset:
-        mktrf, rf = data.get_rf()
-        x['RF'] = rf.values
+        rf = x['rf']
         rf_oos = rf.values[in_fraction:]
-    
+    else:
+        rf_oos = 0
+        
     # split sample   
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
@@ -120,24 +121,24 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
     min_ret=0.1
+    
+    # drop risk-free asset before autoencoding x_in
+    x_in = x_in.drop(['rf'], axis = 1) 
    
     # compute original mean and covariance matrix
     r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
     sigma_in=np.cov(x_in,rowvar=False)
-    sigma_oos=np.cov(x_oos,rowvar=False)
-    
-    # autoencoding and recosntructing the in-sample data
+    sigma_oos=np.cov(x_oos,rowvar=False)  
+
+    # autoencoding and reconstructing the in-sample data
     auto_data = auto.advanced_autoencoder(x_in=x_in, epochs=50, batch_size=32, \
                                      activations=activation, depth=depth, neurons=int(num_stock/2))
 
     # add column with risk-free asset returns for optimization if desired
     if risk_free_asset:
-        mktrf, rf = data.get_rf()
-        auto_data['RF'] = rf.values[:in_fraction]
+        rf = x['rf']
+        auto_data['rf'] = rf.values[:in_fraction]
         rf_oos = rf.values[in_fraction:]
-        x_oos['RF'] = rf_oos
-        #x_oos = pd.concat([pd.DataFrame(x_oos),pd.DataFrame(rf_oos)],axis=1)
-        num_stock = num_stock + 1
     else:
         rf_oos = 0
         
@@ -181,8 +182,6 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     r_excess_oos=r_portf_oos-rf_oos
     r_excess_avg_oos=np.mean(r_excess_oos)
     sigma_oos=np.std(r_excess_oos)
-    print(r_portf_oos)
-    print(r_excess_avg_oos)
     
     r_avg_oos=np.asmatrix(np.mean(x_oos.values, axis=0))
     returns_auto=(1 + weights_auto*r_avg_oos.T)**252 - 1 
@@ -209,13 +208,13 @@ def run(x, num_trials=1):
     
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
-        returns_a, volatility_a, sharpe_a, auto_data = autoencoded_portfolio(x, 'lrelu', 2, 'original_variance')
+        returns_a, volatility_a, sharpe_a, auto_data = autoencoded_portfolio(x, 'lrelu', 3, 'original_variance')
     else:
         returns_a = np.zeros(num_trials)
         volatility_a = np.zeros(num_trials)
         sharpe_a = np.zeros(num_trials)
         for n in range(0, num_trials):
-            returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, 'lrelu', 2, 'original_variance')
+            returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, 'lrelu', 3, 'original_variance')
             returns_a[n], volatility_a[n], sharpe_a[n] = returns_auto, volatility_auto, sharpe_auto
 
     
@@ -228,9 +227,9 @@ def run(x, num_trials=1):
  
     
 
-x = data.import_data('NASDAQ_without_penny_stocks')
-#returns_in, returns_oos, volatility_oos, sharpe_oos = one_over_N(x)
-#encoded_data, auto_data = autoencode_data(x, epochs=50, batch_size=64, activations='relu', depth=3, neurons=100)
+returns = data.import_data('CAC_without_penny_stocks')
+mktrf, rf = data.get_rf('daily')
+x = data.join_risky_with_riskless(returns, rf)
       
 returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(x,1)
 

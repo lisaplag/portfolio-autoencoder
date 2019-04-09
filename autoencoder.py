@@ -142,7 +142,7 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     fg.plot_loss(history)
     
     # plot original, encoded and decoded data for some stock
-    fg.plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
+    # fg.plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
     
     # the histogram of the data
     fg.make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')

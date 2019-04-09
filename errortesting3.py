@@ -122,6 +122,17 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     return A
     
 
+def save_results(res):
+    dim = res.shape
+    tests = ['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5']
+    for i in range(0,dim[2]):
+        for j in range(0,3):
+            name = tests[i]
+            table = res[:,:,i,j]
+            table.to_csv('./data/results/' + name + '.csv')
+    
+    
+    
 dataset = data.import_data('NASDAQ_without_penny_stocks')
 d=dataset.sample(frac=1,axis=1) # to shuffle dataframe
 data=d.iloc[:,:50]
@@ -154,4 +165,4 @@ for i in range(0,5):
       print(counter)
       
 
-
+    
