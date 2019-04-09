@@ -21,12 +21,21 @@ def initialize_weights(num_stock):
     return y0
     
     
-def one_over_N(x):
+def one_over_N(x, risk_free_asset=False):
     num_obs=len(x.index)
-    num_stock=len(x.columns)
-    in_fraction=int(0.8*num_obs)
+    in_fraction=int(0.5*num_obs)
+    
+    # remove column with risk-free asset returns if desired
+    if risk_free_asset:
+        rf = x['rf']
+        rf_oos = rf.values[in_fraction:]
+    else:
+        rf_oos = 0
+        x = x.drop(['rf'], axis = 1)
+        
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
+    num_stock=len(x.columns)
     
     # compute means and covariance matrix
     r_avg=np.asmatrix(np.mean(x_in, axis=0))
@@ -39,18 +48,21 @@ def one_over_N(x):
     # in sample performance
     returns_in=(1 + y0*r_avg.T)**252 - 1
     
+    r_portf_oos=np.matmul(y0,x_oos.values.T)
+    r_excess_oos=r_portf_oos-rf_oos
+    
     # out of sample performance
     returns_oos=(1+ y0*r_avg_oos.T)**252 - 1     
     volatility_oos=np.sqrt(252 * y0*sigma_oos*y0.T)
     sharpe_oos=returns_oos/volatility_oos
     
     print("returns in sample:", returns_in, "\nreturns out of sample:", returns_oos)
-    return returns_in, returns_oos, volatility_oos, sharpe_oos
+    return returns_in, returns_oos, volatility_oos, sharpe_oos, r_portf_oos, r_excess_oos
     
 
 def mean_var_portfolio(x, risk_free_asset=True):
     num_obs=len(x.index)
-    in_fraction=int(0.8*num_obs)
+    in_fraction=int(0.5*num_obs)
     
     # add column with risk-free asset returns if desired
     if risk_free_asset:
@@ -109,7 +121,7 @@ def mean_var_portfolio(x, risk_free_asset=True):
     
     #print(weights_standard)
     #print(sum(weights_standard))
-    return excess_returns_standard, volatility_standard, sharpe_standard
+    return excess_returns_standard, volatility_standard, sharpe_standard, r_portf_oos, r_excess_oos
 
     
     
@@ -117,7 +129,7 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     # split sample
     num_obs=len(x.index)
     num_stock=len(x.columns)
-    in_fraction=int(0.8*num_obs)
+    in_fraction=int(0.5*num_obs)
     x_in=x[:in_fraction]
     x_oos=x[in_fraction:]
     min_ret=0.1
@@ -195,26 +207,26 @@ def autoencoded_portfolio(x, activation, depth, method, risk_free_asset=True):
     
     #print(weights_auto)
     #print(sum(weights_auto))
-    return excess_returns_auto, volatility_auto, sharpe_auto, auto_data
+    return excess_returns_auto, volatility_auto, sharpe_auto, auto_data, r_portf_oos, r_excess_oos
     
       
 
 def run(x, num_trials=1):
     # construct 1/N portfolio
-    return_in, return_oos, volatility_oos, sharpe_oos = one_over_N(x)
+    return_in, return_oos, volatility_oos, sharpe_oos, r_portf_n, r_excess_n = one_over_N(x)
     
     # construct standard mean-variance portfolio
-    return_s, volatility_s, sharpe_s = mean_var_portfolio(x)
+    return_s, volatility_s, sharpe_s, r_portf_s, r_excess_s = mean_var_portfolio(x)
     
     # construct portfolios based on autoencoded returns     
     if num_trials == 1:
-        returns_a, volatility_a, sharpe_a, auto_data = autoencoded_portfolio(x, 'lrelu', 3, 'original_variance')
+        returns_a, volatility_a, sharpe_a, auto_data, r_portf_a, r_excess_a = autoencoded_portfolio(x, 'lrelu', 3, 'original_variance')
     else:
         returns_a = np.zeros(num_trials)
         volatility_a = np.zeros(num_trials)
         sharpe_a = np.zeros(num_trials)
         for n in range(0, num_trials):
-            returns_auto, volatility_auto, sharpe_auto, auto_data = autoencoded_portfolio(x, 'lrelu', 3, 'original_variance')
+            returns_auto, volatility_auto, sharpe_auto, auto_data, r_portf_a, r_excess_a = autoencoded_portfolio(x, 'lrelu', 3, 'original_variance')
             returns_a[n], volatility_a[n], sharpe_a[n] = returns_auto, volatility_auto, sharpe_auto
 
     
@@ -222,16 +234,20 @@ def run(x, num_trials=1):
     print("\nreturns standard:", return_s, "\nvolatility standard:", volatility_s, "\nsharpe standard:", sharpe_s)
     print("\nreturns auto:", returns_a, "\nvolatility auto:", volatility_a, "\nsharpe auto:", sharpe_a)
     
-    return return_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data
+    return r_portf_n, r_excess_n, r_portf_s, r_excess_s, r_portf_a, r_excess_a
 
  
     
-
+# get out-of-sample return vectors
 returns = data.import_data('CAC_without_penny_stocks')
 mktrf, rf = data.get_rf('daily')
 x = data.join_risky_with_riskless(returns, rf)
       
-returns_s, volatility_s, sharpe_s, returns_a, volatility_a, sharpe_a, auto_data = run(x,1)
+r_portf_n, r_excess_n, r_portf_s, r_excess_s, r_portf_a, r_excess_a = run(x,1)
+
+
+
+
 
 
 
