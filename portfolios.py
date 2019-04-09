@@ -103,7 +103,7 @@ def mean_var_portfolio(x, risk_free_asset=True):
     weights_standard=np.asmatrix(solution.x)
 
     # out of sample performance
-    r_portf_oos=np.matmul(weights_standard,x_oos.T)
+    r_portf_oos=weights_standard@x_oos.T
     r_excess_oos=r_portf_oos-rf_oos
     r_excess_avg_oos=np.mean(r_excess_oos)
     r_avg_oos=np.asmatrix(np.mean(x_oos, axis=0))
