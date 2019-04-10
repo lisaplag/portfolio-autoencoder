@@ -129,37 +129,34 @@ tf.set_random_seed(12341)
 
 num_obs=dataset.shape[0]
 
-
-
 in_fraction=int(0.5*num_obs)
 x_in=dataset.iloc[:in_fraction]
 num_stock=dataset.shape[1] #not including the risk free stock
 
-runs=1
-labda=0.94
-s=500
-
+# set up the experiment
+iterations = 100
 different_depths=[1,2,3,4,5]
 different_neurons=[120,100,80]
-results=np.zeros((5,3,5,20))
+results=np.zeros((5,3,5,iterations))
 
 # loop over different autoencoders
-counter=120
+counter=0
 for i in range(0,5):
   for j in range(0,3):
     np.random.seed(11)
     rn.seed(123451)        
     tf.set_random_seed(12341)
-    for k in range(0,20):
+    for k in range(0,iterations):
       results[i,j,:,k]=advanced_autoencoder(x_in,1000,10,'elu',different_depths[i],different_neurons[j])
       print(results[i,j,:,k])
       counter=counter+1
       print(counter)
+      
 coun=0   
-test_stats=np.zeros((300,7))
+test_stats=np.zeros((15*iterations,7))
 for i in range(0,5):
     for j in range(0,3):
-        for k in range(0,20):
+        for k in range(0,iterations):
             test_stats[coun,0]=different_depths[i]
             test_stats[coun,1]=different_neurons[j]
             test_stats[coun,2:]=results[i,j,:,k]
@@ -180,7 +177,7 @@ portmanteau1_counter=0
 portmanteau3_counter=0
 portmanteau5_counter=0
 
-for i in range(0,300):
+for i in range(0,15*iterations):
     if test_stats[i,2]<chi2_bound:
         significant_stats=np.concatenate((significant_stats,np.matrix(test_stats[i,:])),axis=0)
         chi_counter=chi_counter+1    
@@ -202,7 +199,7 @@ for i in range(0,300):
         portmanteau5_counter=portmanteau5_counter+1
 
 significant_stats2=np.zeros((1,7))
-for i in range(0,300):
+for i in range(0,15*iterations):
     if test_stats[i,2]<chi2_bound:
         significant_stats2=np.concatenate((significant_stats2,np.matrix(test_stats[i,:])),axis=0)   
     elif abs(test_stats[i,3])<z_bound:
