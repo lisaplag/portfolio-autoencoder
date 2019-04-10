@@ -201,10 +201,10 @@ def get_stats(index, iterations, depths, neurons, write=True):
     return chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count, sig_stats, sig_stats2, sig_stats3
 
 
-index = 'CDAX_without_penny_stocks'
+index = 'CAC_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
 different_neurons=[120,100,80]
 
-results1, results2, results3 = get_stats(index, iterations, different_depths, different_neurons, False)
+count1, count2, count3, count4, count5, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, False)
 
