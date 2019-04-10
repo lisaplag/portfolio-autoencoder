@@ -165,11 +165,11 @@ for i in range(num_obs-in_fraction,num_obs):
 MSPE_sigma=MSPE_sigma/(num_obs-in_fraction)
 
 outcomes=np.zeros((1,7))
-np.random.seed(21)
-rn.seed(212345)        
-tf.set_random_seed(21234)
+np.random.seed(121)
+rn.seed(1212345)        
+tf.set_random_seed(121234)
 #prediction autoencoded data
-for q in range(0,10):
+for q in range(0,500):
     auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
     auto_data=np.matrix(auto_data)
     errors = np.add(auto_data[:in_fraction,:],-x_in)
@@ -179,7 +179,7 @@ for q in range(0,10):
     A[2]=portmanteau(errors,1)
     A[3]=portmanteau(errors,3)
     A[4]=portmanteau(errors,5)
-    if (A[0]<chi2_bound and abs(A[1])<z_bound) or 0>-1:
+    if (A[0]<chi2_bound and abs(A[1])<z_bound):
         r_pred_auto=np.zeros((num_obs,num_stock))
         s_pred_auto=np.zeros((num_obs,num_stock,num_stock))
         s_pred_auto[0,:num_stock,:num_stock]=np.outer((r_pred_auto[0:1,:num_stock]),(r_pred_auto[0:1,:num_stock]))
