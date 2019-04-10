@@ -40,6 +40,8 @@ def expanding_window(index, window_size, startup_period=504, min_ret=0.001):
     # Measurements
     MSFE_o = 0
     MSFE_a = 0
+
+    # Construct a portfolio for each month
     for m in range(M):
         t = startup_period + m * window_size
         R_m = data[t:t + window_size]
@@ -61,14 +63,7 @@ def expanding_window(index, window_size, startup_period=504, min_ret=0.001):
         R_a_m = R_m @ w_a
         R_a_portfolio = np.append(R_a_portfolio, R_a_m)
 
-        print('day: ', t)
-        print('Cumulative returns of original portfolio:', np.sum(R_o_portfolio))
-        print('Cumulative returns of autoencoded portfolio', np.sum(R_a_portfolio))
-        print('Volatility_o: ', np.std(R_o_portfolio))
-        print('Volatility_a: ', np.std(R_a_portfolio))
-        print('MSFE_o: ', MSFE_o)
-        print('MSFE_a: ', MSFE_a)
-
+    return R_a_portfolio, R_o_portfolio
 
 def autoencoder_window(x_in):
     num_obs, N = x_in.shape
@@ -126,3 +121,5 @@ index = 'NASDAQ_without_penny_stocks'
 window_size = 21
 startup_period = 504
 min_ret = 0.001
+
+portfolio_returns_a, portfolio_returns_o = expanding_window(index,window_size,startup_period,min_ret)
