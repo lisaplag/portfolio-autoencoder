@@ -206,6 +206,10 @@ def get_stats(index, iterations, depths, neurons, write=True):
         stats3 = pd.DataFrame(sig_stats3[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
         stats3.to_csv('./data/results/' + index + '_stats3.csv')
         
+        c = {'Chi2': chi_count, 'Pesaran': pesaran_count, 'Portmanteau1': portmanteau1_count, 'Portmanteau3': portmanteau3_count, 'Portmanteau5': portmanteau5_count}
+        counts = pd.DataFrame(data=c) 
+        counts.to_csv('./data/results/' + index + '_counts.csv')
+        
     return chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count, sig_stats, sig_stats2, sig_stats3
 
 
