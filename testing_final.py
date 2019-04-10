@@ -196,7 +196,15 @@ def get_stats(index, iterations, depths, neurons, write=True):
             sig_stats3=np.concatenate((sig_stats3,np.matrix(stats[i,:])),axis=0)
                     
     if write:
-        sig_stats.to_csv('./data/results/' + index + '_sig_stats.csv')
+        # removing 0 row and preparing for writing to csv
+        stats1 = pd.DataFrame(sig_stats[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
+        stats1.to_csv('./data/results/' + index + '_stats1.csv')
+        
+        stats2 = pd.DataFrame(sig_stats2[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
+        stats2.to_csv('./data/results/' + index + '_stats1.csv')
+        
+        stats3 = pd.DataFrame(sig_stats3[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
+        stats3.to_csv('./data/results/' + index + '_stats1.csv')
         
     return chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count, sig_stats, sig_stats2, sig_stats3
 
@@ -206,5 +214,5 @@ iterations=100
 different_depths=[1,2,3,4,5]
 different_neurons=[120,100,80]
 
-count1, count2, count3, count4, count5, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, False)
+count1, count2, count3, count4, count5, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
 
