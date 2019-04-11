@@ -53,7 +53,6 @@ def portmanteau(u,h):
   Q=Q*T*T
   return Q
 
-
 def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
     K.set_session(sess)
@@ -101,16 +100,6 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     A[4]=portmanteau(errors,5)
         
     #autoencoder.summary()
-    
-    # plot accuracy and loss of autoencoder
-    # plot_accuracy(history)
-    # plot_loss(history)
-    
-    # plot original, encoded and decoded data for some stock
-    # plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
-    
-    # the histogram of the data
-    # make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')
     
     #CLOSE TF SESSION
     K.clear_session()
@@ -210,13 +199,37 @@ def get_stats(index, iterations, depths, neurons, write=True):
         counts = pd.DataFrame(c_list, index=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'], columns=['counts'])
         counts.to_csv('./data/results/' + index + '_counts.csv')
         
-    return chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count, sig_stats, sig_stats2, sig_stats3
+    return counts, stats1, stats2, stats3
 
 
-index = 'CAC_without_penny_stocks'
+
+def aggregate_stats(stats, depths, neurons):
+    counts=np.zeros((len(neurons),len(depths)))
+    n=0
+    d=0
+    # counting significant results per depth d and number of neurons n
+    for i in range(0,len(stats['Depth'])):
+        d = depths.index(stats['Depth'][i])
+        n = neurons.index(stats['Neurons'][i])
+        counts[n,d] += 1
+            
+    return counts
+    
+    
+    
+
+index = 'FTSE_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
-different_neurons=[120,100,80]
+different_neurons=[180,160,140]
 
-count1, count2, count3, count4, count5, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, False)
+counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
+sig_counts1 = aggregate_stats(stat1, different_depths, different_neurons)
+sig_counts2 = aggregate_stats(stat2, different_depths, different_neurons)
+sig_counts3 = aggregate_stats(stat3, different_depths, different_neurons)
+
+
+
+
+
 
