@@ -179,10 +179,8 @@ def get_stats(index, iterations, depths, neurons, write=True):
     
     sig_stats3=np.zeros((1,7))
     for i in range(0, 15*iterations):
-        if stats[i,2]<chi2_bound:
+        if stats[i,2]<chi2_bound and abs(stats[i,3])<z_bound:
             sig_stats3=np.concatenate((sig_stats3,np.matrix(stats[i,:])),axis=0)   
-        elif abs(stats[i,3])<z_bound:
-            sig_stats3=np.concatenate((sig_stats3,np.matrix(stats[i,:])),axis=0)
                     
     if write:
         # removing 0 row and preparing for writing to csv
@@ -203,23 +201,32 @@ def get_stats(index, iterations, depths, neurons, write=True):
 
 
 
-def aggregate_stats(stats, depths, neurons):
-    counts=np.zeros((len(neurons),len(depths)))
-    n=0
-    d=0
+def aggregate_stats(stats, depths, neurons, write=True):
+    counts=[]
+    
     # counting significant results per depth d and number of neurons n
-    for i in range(0,len(stats['Depth'])):
-        print(stats['Depth'][i])
-        d = depths.index(stats['Depth'][i])
-        n = neurons.index(stats['Neurons'][i])
-        counts[n,d] += 1
-     
-    counts_df = pd.DataFrame(counts, index=neurons, columns=depths)
-    return counts_df
+    for s in range(0, len(stats)):
+        count = np.zeros((len(neurons),len(depths)))
+        for i in range(0,len(stats[s]['Depth'])):
+            d = depths.index(stats[s]['Depth'][i])
+            n = neurons.index(stats[s]['Neurons'][i])
+            count[n,d] += 1
+        counts.append(count)  
+        
+    # converting into dataframes
+    counts_df1 = pd.DataFrame(counts[0], index=neurons, columns=depths)
+    counts_df2 = pd.DataFrame(counts[1], index=neurons, columns=depths)
+    counts_df3 = pd.DataFrame(counts[2], index=neurons, columns=depths)
+    
+    with pd.ExcelWriter('./data/results/' + index + '_stat_counts.xlsx') as writer: 
+        counts_df1.to_excel(writer, sheet_name='Stats1')
+        counts_df2.to_excel(writer, sheet_name='Stats2')
+        counts_df3.to_excel(writer, sheet_name='Stats3')
+        
+    return counts, counts_df1, counts_df2, counts_df3
     
     
     
-
 index = 'CDAX_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
@@ -231,9 +238,7 @@ stat1 = data.import_data('results/' + index + '_stats1')
 stat2 = data.import_data('results/' + index + '_stats2')
 stat3 = data.import_data('results/' + index + '_stats3')
 
-sig_counts1 = aggregate_stats(stat1, different_depths, different_neurons)
-sig_counts2 = aggregate_stats(stat2, different_depths, different_neurons)
-sig_counts3 = aggregate_stats(stat3, different_depths, different_neurons)
+counts1, sig_counts1, sig_counts2, sig_counts3 = aggregate_stats([stat1, stat2, stat3], different_depths, different_neurons)
 
 
 
