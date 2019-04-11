@@ -209,21 +209,28 @@ def aggregate_stats(stats, depths, neurons):
     d=0
     # counting significant results per depth d and number of neurons n
     for i in range(0,len(stats['Depth'])):
+        print(stats['Depth'][i])
         d = depths.index(stats['Depth'][i])
         n = neurons.index(stats['Neurons'][i])
         counts[n,d] += 1
-            
-    return counts
+     
+    counts_df = pd.DataFrame(counts, index=neurons, columns=depths)
+    return counts_df
     
     
     
 
-index = 'FTSE_without_penny_stocks'
+index = 'CDAX_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
-different_neurons=[180,160,140]
+different_neurons=[120,100,80]
 
-counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
+#counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
+
+stat1 = data.import_data('results/' + index + '_stats1')
+stat2 = data.import_data('results/' + index + '_stats2')
+stat3 = data.import_data('results/' + index + '_stats3')
+
 sig_counts1 = aggregate_stats(stat1, different_depths, different_neurons)
 sig_counts2 = aggregate_stats(stat2, different_depths, different_neurons)
 sig_counts3 = aggregate_stats(stat3, different_depths, different_neurons)
