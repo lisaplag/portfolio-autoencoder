@@ -181,7 +181,7 @@ def get_stats(index, iterations, depths, neurons, write=True):
     for i in range(0, 15*iterations):
         if stats[i,2]<chi2_bound and abs(stats[i,3])<z_bound:
             sig_stats3=np.concatenate((sig_stats3,np.matrix(stats[i,:])),axis=0)   
-                    
+
     if write:
         # removing 0 row and preparing for writing to csv
         stats1 = pd.DataFrame(sig_stats[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
