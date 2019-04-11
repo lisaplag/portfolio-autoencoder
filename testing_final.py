@@ -206,8 +206,8 @@ def get_stats(index, iterations, depths, neurons, write=True):
         stats3 = pd.DataFrame(sig_stats3[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
         stats3.to_csv('./data/results/' + index + '_stats3.csv')
         
-        c = {'Chi2': chi_count, 'Pesaran': pesaran_count, 'Portmanteau1': portmanteau1_count, 'Portmanteau3': portmanteau3_count, 'Portmanteau5': portmanteau5_count}
-        counts = pd.DataFrame(data=c) 
+        c_list = [chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count]
+        counts = pd.DataFrame(c_list, index=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'], columns=['counts'])
         counts.to_csv('./data/results/' + index + '_counts.csv')
         
     return chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count, sig_stats, sig_stats2, sig_stats3
@@ -218,5 +218,5 @@ iterations=100
 different_depths=[1,2,3,4,5]
 different_neurons=[120,100,80]
 
-count1, count2, count3, count4, count5, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
+count1, count2, count3, count4, count5, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, False)
 
