@@ -227,10 +227,12 @@ def aggregate_stats(stats, depths, neurons, write=True):
     
     
     
-index = 'CDAX_without_penny_stocks'
+index = 'FTSE_without_penny_stocks_different_neurons'
+#index = 'FTSE_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
-different_neurons=[120,100,80]
+different_neurons=[180,160,140]
+#different_neurons=[120,100,80]
 
 #counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
 

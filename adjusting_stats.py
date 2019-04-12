@@ -10,7 +10,7 @@ import pandas as pd
 import read_data as data
 
 
-index = 'FTSE_without_penny_stocks'
+index = 'FTSE_without_penny_stocks_different_neurons'
 chi2_bound=6.635
 z_bound=2.58
 stats3 = data.import_data('results/' + index + '_stats3')

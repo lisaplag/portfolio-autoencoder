@@ -195,8 +195,8 @@ for q in range(0,500):
             else:
                 r_pred_auto[i,:num_stock]=auto_data[i-s:i,:num_stock].mean(axis=0)
             s_pred_auto[i,:num_stock,:num_stock]=(1-labda)*np.outer((auto_data[i-1,:num_stock]-r_pred_auto[i-1,:num_stock]),(auto_data[i-1,:num_stock]-r_pred_auto[i-1,:num_stock]))+labda*s_pred_auto[i-1,:num_stock,:num_stock]
-        for j in range(0,num_stock):
-            s_pred_auto[i,j,j]=s_pred[i,j,j]
+            for j in range(0,num_stock):
+                s_pred_auto[i,j,j]=s_pred[i,j,j]
            
         f_errors_auto=r_pred_auto-x
         MSPE_r_auto=np.square(f_errors_auto[num_obs-in_fraction:,:num_stock]).mean()
