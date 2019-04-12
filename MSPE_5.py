@@ -138,7 +138,7 @@ num_stock=dataset.shape[1] #not including the risk free stock
 chi2_bound=6.635
 z_bound=2.58
 runs=1
-labda=0.94
+labda=0.97
 s=500
 x=np.matrix(dataset.iloc[:first_period,:])
 num_obs=first_period
@@ -208,4 +208,8 @@ for q in range(0,500):
         res[0,5]=MSPE_r_auto
         res[0,6]=MSPE_sigma_auto
         outcomes=np.concatenate((outcomes,res),axis=0)
+
+
+
+
 
