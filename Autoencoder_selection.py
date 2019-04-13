@@ -17,10 +17,11 @@ from keras.layers import Input, Dense, GaussianNoise
 from keras.models import Model, Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import HDF5Matrix
-
+from scipy.optimize import minimize
+from read_data import get_rf, join_risky_with_riskless
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
-
+from portfolios import autoencoded_portfolio
 
 def chi2test(u):
     num_pos = 0
@@ -95,7 +96,7 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
     autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
 
     # checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
-    earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=0, mode='auto', baseline=None,
+    earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=100, verbose=0, mode='auto', baseline=None,
                                  restore_best_weights=True)
     history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
                               shuffle=False, validation_split=0.15, verbose=0, callbacks=[earlystopper])
@@ -125,8 +126,35 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
     K.clear_session()
     return y
 
+def MVO(mu, Sigma, min_ret):
+    mu = np.array(mu)
+    Sigma = np.array(Sigma)
+    N = mu.shape[0]
+
+    # Define optimization problem
+    objective_function = lambda w : np.transpose(w) @ Sigma @ w
+    weight_constraint = lambda w : np.sum(w) - 1
+    return_constraint = lambda w : np.transpose(w) @ mu - min_ret
+
+    # Initialize
+    w0 = np.zeros((1, N))
+    w0[:] = 1/N
+    b = [0, 1] # bounds
+    bnds = [np.transpose(b)] * N
+    cons = ({'type': 'eq', 'fun': weight_constraint},
+            {'type': 'ineq', 'fun': return_constraint})
+
+    # Minimize
+    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons)
+    weights = solution.x
+    return weights
 
 dataset = data.import_data('CDAX_without_penny_stocks')
+mktrf, rf = get_rf('daily', True)
+dataset = join_risky_with_riskless(dataset, rf)
+rf_merged = np.array(dataset['rf'])
+rf_merged = rf_merged.reshape((rf_merged.shape[0],1))
+
 np.random.seed(1)
 rn.seed(12345)
 tf.set_random_seed(1234)
@@ -140,7 +168,7 @@ num_stock = dataset.shape[1]  # not including the risk free stock
 chi2_bound = 6.635
 z_bound = 2.58
 runs = 1
-labda = 0.94
+labda = 0.97
 s = 500
 x = np.matrix(dataset.iloc[:first_period, :])
 num_obs = first_period
@@ -176,14 +204,16 @@ tf.set_random_seed(121234)
 
 MSPE_sigma_auto = np.array(np.zeros((num_obs,1)))
 t = in_fraction
+x_in_norf = x_in.iloc[:, :-1]
+x_norf = np.matrix(np.array(x)[:, :-1])
 finished = False
 while finished is False:
     print(t)
     for q in range(0, 50):
         print(q)
-        auto_data = advanced_autoencoder(x_in, x, 1000, 10, 'elu', 3, 100)
+        auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 1, 50)
         auto_data = np.matrix(auto_data)
-        errors = np.add(auto_data[:in_fraction, :], -x_in)
+        errors = np.add(auto_data[:in_fraction, :], -x_in_norf)
         A = np.zeros((5))
         A[0] = chi2test(errors)
         A[1] = pesarantest(errors)
@@ -191,6 +221,8 @@ while finished is False:
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
         if (A[0] < chi2_bound and abs(A[1]) < z_bound):
+            auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
+            num_stock = auto_data.shape[1]
             r_pred_auto = np.zeros((num_obs, num_stock))
             s_pred_auto = np.zeros((num_obs, num_stock, num_stock))
             s_pred_auto[0, :num_stock, :num_stock] = np.outer((r_pred_auto[0:1, :num_stock]),
@@ -199,7 +231,6 @@ while finished is False:
             weights_auto = np.zeros((num_obs - in_fraction, num_stock))
             portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
             portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
-
             for i in range(1, num_obs):
                 if i < s + 1:
                     r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
@@ -209,7 +240,7 @@ while finished is False:
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,
                                                                                                :num_stock, :num_stock]
-                for j in range(0, num_stock):
+                for j in range(0, num_stock-1):
                     s_pred_auto[i, j, j] = s_pred[i, j, j]
 
             f_errors_auto = r_pred_auto - x
@@ -217,6 +248,8 @@ while finished is False:
             for i in range(t, t+252):
                 MSPE_sigma_auto[t] = np.square(np.outer(f_errors_auto[i:i + 1, :], f_errors_auto[i:i + 1, :]) -
                                                s_pred_auto[i, :num_stock, :num_stock]).mean()
+
+            auto_weights = MVO(r_pred_auto[t,:], s_pred_auto[t,:,:], 0.001)
             break
 
     if t == num_obs - 252:
