@@ -138,7 +138,7 @@ num_stock=dataset.shape[1] #not including the risk free stock
 chi2_bound=6.635
 z_bound=2.58
 runs=1
-labda=0.94
+labda=0.97
 s=500
 x=np.matrix(dataset.iloc[:first_period,:])
 num_obs=first_period
@@ -195,8 +195,8 @@ for q in range(0,500):
             else:
                 r_pred_auto[i,:num_stock]=auto_data[i-s:i,:num_stock].mean(axis=0)
             s_pred_auto[i,:num_stock,:num_stock]=(1-labda)*np.outer((auto_data[i-1,:num_stock]-r_pred_auto[i-1,:num_stock]),(auto_data[i-1,:num_stock]-r_pred_auto[i-1,:num_stock]))+labda*s_pred_auto[i-1,:num_stock,:num_stock]
-        for j in range(0,num_stock):
-            s_pred_auto[i,j,j]=s_pred[i,j,j]
+            for j in range(0,num_stock):
+                s_pred_auto[i,j,j]=s_pred[i,j,j]
            
         f_errors_auto=r_pred_auto-x
         MSPE_r_auto=np.square(f_errors_auto[num_obs-in_fraction:,:num_stock]).mean()
@@ -208,4 +208,8 @@ for q in range(0,500):
         res[0,5]=MSPE_r_auto
         res[0,6]=MSPE_sigma_auto
         outcomes=np.concatenate((outcomes,res),axis=0)
+
+
+
+
 
