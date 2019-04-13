@@ -96,7 +96,7 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
     autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
 
     # checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
-    earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=100, verbose=0, mode='auto', baseline=None,
+    earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=50, verbose=0, mode='auto', baseline=None,
                                  restore_best_weights=True)
     history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
                               shuffle=False, validation_split=0.15, verbose=0, callbacks=[earlystopper])
