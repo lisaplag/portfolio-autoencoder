@@ -207,6 +207,7 @@ t = in_fraction
 x_in_norf = x_in.iloc[:, :-1]
 x_norf = np.matrix(np.array(x)[:, :-1])
 finished = False
+portfolio_returns = 0
 while finished is False:
     print(t)
     for q in range(0, 50):
@@ -250,6 +251,9 @@ while finished is False:
                                                s_pred_auto[i, :num_stock, :num_stock]).mean()
 
             auto_weights = MVO(r_pred_auto[t,:], s_pred_auto[t,:,:], 0.001)
+            log_returns = np.log(x[t:t+252, :]+1)
+            yearly_returns = log_returns.sum(axis=0)
+            portfolio_returns = portfolio_returns + yearly_returns @ auto_weights
             break
 
     if t == num_obs - 252:
