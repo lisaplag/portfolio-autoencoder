@@ -93,7 +93,7 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
 
     # autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
 
-    autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
+    autoencoder.compile(optimizer='adam', loss='mae', metrics=['accuracy'])
 
     # checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=50, verbose=0, mode='auto', baseline=None,
@@ -211,7 +211,7 @@ while finished is False:
     print(t)
     for q in range(0, 50):
         print(q)
-        auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 1, 50)
+        auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
         errors = np.add(auto_data[:in_fraction, :], -x_in_norf)
         A = np.zeros((5))
