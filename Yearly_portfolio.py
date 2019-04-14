@@ -94,7 +94,7 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
 
     # autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
 
-    autoencoder.compile(optimizer='adam', loss='mae', metrics=['accuracy'])
+    autoencoder.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
 
     # checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=50, verbose=0, mode='auto', baseline=None,
@@ -209,17 +209,13 @@ x_in_norf = x_in.iloc[:, :-1]
 x_norf = np.matrix(np.array(x)[:, :-1])
 finished = False
 portfolio_returns = 0
-M = math.ceil(out_fraction/252)
-res = np.zeros((1,7))
-outcomes_rej_chi2=np.zeros((1,7))
-outcomes_rej_pes=np.zeros((1,7))
-outcomes_rej_both=np.zeros((1,7))
-outcomes=np.zeros((1,7))
-counter = 0
 while finished is False:
     print(t)
-    for q in range(0, 5):
-        print(q)
+    test_passed = False
+    counter = 0
+    while test_passed == False:
+        print(counter)
+        counter += 1
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
         errors = np.add(auto_data[:in_fraction, :], -x_in_norf)
@@ -229,52 +225,40 @@ while finished is False:
         A[2] = portmanteau(errors, 1)
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
-        auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
-        num_stock = auto_data.shape[1]
-        r_pred_auto = np.zeros((num_obs, num_stock))
-        s_pred_auto = np.zeros((num_obs, num_stock, num_stock))
-        s_pred_auto[0, :num_stock, :num_stock] = np.outer((r_pred_auto[0:1, :num_stock]),
-                                                          (r_pred_auto[0:1, :num_stock]))
+        if (A[0] < chi2_bound and abs(A[1]) < z_bound):
+            auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
+            num_stock = auto_data.shape[1]
+            r_pred_auto = np.zeros((num_obs, num_stock))
+            s_pred_auto = np.zeros((num_obs, num_stock, num_stock))
+            s_pred_auto[0, :num_stock, :num_stock] = np.outer((r_pred_auto[0:1, :num_stock]),
+                                                              (r_pred_auto[0:1, :num_stock]))
 
-        weights_auto = np.zeros((num_obs - in_fraction, num_stock))
-        portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
-        portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
-        for i in range(1, num_obs):
-            if i < s + 1:
-                r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
-            else:
-                r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
-            s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
-                (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
-                (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,
-                                                                                           :num_stock, :num_stock]
-            for j in range(0, num_stock-1):
-                s_pred_auto[i, j, j] = s_pred[i, j, j]
+            weights_auto = np.zeros((num_obs - in_fraction, num_stock))
+            portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
+            portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
+            for i in range(1, num_obs):
+                if i < s + 1:
+                    r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
+                else:
+                    r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
+                s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
+                    (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
+                    (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,
+                                                                                               :num_stock, :num_stock]
+                for j in range(0, num_stock-1):
+                    s_pred_auto[i, j, j] = s_pred[i, j, j]
 
-        f_errors_auto = r_pred_auto - x
-        MSPE_r_auto = np.square(f_errors_auto[t:t+252, :num_stock]).mean()
-        for i in range(t, t+252):
-            MSPE_sigma_auto[t] = np.square(np.outer(f_errors_auto[i:i + 1, :], f_errors_auto[i:i + 1, :]) -
-                                           s_pred_auto[i, :num_stock, :num_stock]).mean()
-        MSPE_r_year = MSPE_r_auto.mean()
-        MSPE_sigma_year = MSPE_sigma_auto.mean()
-        res[0, :5] = A
-        res[0, 5] = MSPE_r_year
-        res[0, 6] = MSPE_sigma_year
-        if (A[0]<chi2_bound and abs(A[1])<z_bound):
-            outcomes=np.concatenate((outcomes,res),axis=0)
-        elif (A[0]<chi2_bound and abs(A[1])>=z_bound):
-            outcomes_rej_pes=np.concatenate((outcomes_rej_pes,res),axis=0)
-        elif (A[0]>=chi2_bound and abs(A[1])<z_bound):
-            outcomes_rej_chi2=np.concatenate((outcomes_rej_chi2,res),axis=0)
-        else:
-            outcomes_rej_both=np.concatenate((outcomes_rej_both,res),axis=0)
-    counter += 1
-    separator = np.array([counter, counter, counter, counter, counter, counter, counter]).reshape((1,7))
-    outcomes = np.concatenate((outcomes, separator), axis=0)
-    outcomes_rej_pes = np.concatenate((outcomes_rej_pes, separator), axis=0)
-    outcomes_rej_chi2 = np.concatenate((outcomes_rej_chi2, separator), axis=0)
-    outcomes_rej_both = np.concatenate((outcomes_rej_both, separator), axis=0)
+            f_errors_auto = r_pred_auto - x
+            MSPE_r_auto = np.square(f_errors_auto[t:t+252, :num_stock]).mean()
+            for i in range(t, t+252):
+                MSPE_sigma_auto[t] = np.square(np.outer(f_errors_auto[i:i + 1, :], f_errors_auto[i:i + 1, :]) -
+                                               s_pred_auto[i, :num_stock, :num_stock]).mean()
+
+            auto_weights = MVO(r_pred_auto[t,:], s_pred_auto[t,:,:], 0.001)
+            log_returns = np.log(x[t:t+252, :]+1)
+            yearly_returns = log_returns.sum(axis=0)
+            portfolio_returns = portfolio_returns + yearly_returns @ auto_weights
+            break
 
     if t == num_obs - 252:
         finished = True
