@@ -130,7 +130,7 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
 def MVO(mu, Sigma, min_ret):
     mu = np.array(mu)
     Sigma = np.array(Sigma)
-    N = mu.shape[0]
+    N = mu.shape[1]
 
     # Define optimization problem
     objective_function = lambda w : np.transpose(w) @ Sigma @ w
@@ -142,8 +142,8 @@ def MVO(mu, Sigma, min_ret):
     w0[:] = 1/N
     b = [0, 1] # bounds
     bnds = [np.transpose(b)] * N
-    cons = ({'type': 'eq', 'fun': weight_constraint},
-            {'type': 'ineq', 'fun': return_constraint})
+    cons = [{'type': 'eq', 'fun': weight_constraint},
+            {'type': 'ineq', 'fun': return_constraint}]
 
     # Minimize
     solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons)
@@ -241,6 +241,7 @@ while finished is False:
                     r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
                 else:
                     r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
+                error_var = pd.DataFrame()
                 s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,
@@ -254,7 +255,7 @@ while finished is False:
                 MSPE_sigma_auto[t] = np.square(np.outer(f_errors_auto[i:i + 1, :], f_errors_auto[i:i + 1, :]) -
                                                s_pred_auto[i, :num_stock, :num_stock]).mean()
 
-            auto_weights = MVO(r_pred_auto[t,:], s_pred_auto[t,:,:], 0.001)
+            auto_weights = MVO(r_pred_auto[t,:], s_pred_auto[t,:,:], 0.0001)
             log_returns = np.log(x[t:t+252, :]+1)
             yearly_returns = log_returns.sum(axis=0)
             portfolio_returns = portfolio_returns + yearly_returns @ auto_weights
