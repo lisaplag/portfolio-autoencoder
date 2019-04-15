@@ -21,7 +21,6 @@ from scipy.optimize import minimize
 from read_data import get_rf, join_risky_with_riskless
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
-from portfolios import autoencoded_portfolio
 import math
 
 def chi2test(u):
@@ -130,7 +129,7 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
 def MVO(mu, Sigma, min_ret):
     mu = np.array(mu)
     Sigma = np.array(Sigma)
-    N = mu.shape[1]
+    N = mu.shape[0]
 
     # Define optimization problem
     objective_function = lambda w : np.transpose(w) @ Sigma @ w
@@ -236,18 +235,19 @@ while finished is False:
             weights_auto = np.zeros((num_obs - in_fraction, num_stock))
             portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
             portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
+            resids = pd.DataFrame(auto_data-x)
+            resids = resids.ewm(alpha=0.03).var()
             for i in range(1, num_obs):
                 if i < s + 1:
                     r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
                 else:
                     r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
-                error_var = pd.DataFrame(errors).ewm(alpha=0.03).var()
                 s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
-                    (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,
-                                                                                               :num_stock, :num_stock]
+                    (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,:num_stock, :num_stock]
+
                 for j in range(0, num_stock-1):
-                    s_pred_auto[i, j, j] = s_pred[i, j, j]
+                    s_pred_auto[i, j, j] = s_pred_auto[i, j, j] + resids.iloc[i,j]
 
             f_errors_auto = r_pred_auto - x
             MSPE_r_auto = np.square(f_errors_auto[t:t+252, :num_stock]).mean()
