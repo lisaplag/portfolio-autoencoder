@@ -218,7 +218,7 @@ while finished is False:
         counter += 1
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
-        errors = np.add(auto_data[:in_fraction, :], -x_in_norf)
+        errors = pd.DataFrame(np.add(auto_data[:in_fraction, :], -x_in_norf))
         A = np.zeros((5))
         A[0] = chi2test(errors)
         A[1] = pesarantest(errors)
@@ -241,7 +241,7 @@ while finished is False:
                     r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
                 else:
                     r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
-                error_var = pd.DataFrame()
+                error_var = pd.DataFrame(errors).ewm(alpha=0.03).var()
                 s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
                     (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,
