@@ -60,77 +60,84 @@ def portmanteau(u, h):
     return Q
 
 
-def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neurons):
+def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons):
     sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
     K.set_session(sess)
-    num_stock = len(x_in.columns)
-
-    # activation functions
+    num_stock=len(x_in.columns)
+    
+    #make noisy data  
+    num_obs_in=len(x_in.index)
+    in_fraction_dn=int(0.85*num_obs_in)
+    x_train=x_in[:in_fraction_dn] #in-smaple training subsample
+    x_test=x_in[in_fraction_dn:] #in-sample testing subsample
+    
+    noise_factor = 0.01
+    x_train_noisy = x_train + noise_factor * np.random.standard_t(df=3, size=x_train.shape)
+         
+    # activation functions    
     if activations == 'elu':
         function = ELU(alpha=1.0)
     elif activations == 'lrelu':
         function = LeakyReLU(alpha=0.1)
     else:
         function = ReLU(max_value=None, negative_slope=0.0, threshold=0.0)
-
+        
     autoencoder = Sequential()
     # encoding layers of desired depth
-    for n in range(1, depth + 1):
+    for n in range(1, depth+1):
         # input layer
-        if n == 1:
-            # autoencoder.add(GaussianNoise(stddev=0.01, input_shape=(num_stock,)))
-            autoencoder.add(Dense(int(neurons / n), input_shape=(num_stock,)))
+        if n==1:
+            #autoencoder.add(GaussianNoise(stddev=0.01, input_shape=(num_stock,)))
+            autoencoder.add(Dense(int(neurons/n), input_shape=(num_stock,)))
             autoencoder.add(function)
-        else:
-            autoencoder.add(Dense(int(neurons / n)))
+        else:            
+            autoencoder.add(Dense(int(neurons/n)))
             autoencoder.add(function)
     # decoding layers of desired depth
     for n in range(depth, 1, -1):
-        autoencoder.add(Dense(int(neurons / (n - 1))))
+        autoencoder.add(Dense(int(neurons/(n-1))))
         autoencoder.add(function)
     # output layer
     autoencoder.add(Dense(num_stock, activation='linear'))
-
-    # autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
-
-    autoencoder.compile(optimizer='adam', loss='mse', metrics=['accuracy'])
-
-    # checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
-    earlystopper = EarlyStopping(monitor='val_loss', min_delta=0, patience=50, verbose=0, mode='auto', baseline=None,
-                                 restore_best_weights=True)
-    history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_split=0.15, verbose=0, callbacks=[earlystopper])
-    # errors = np.add(autoencoder.predict(x_in),-x_in)
-    y = autoencoder.predict(x)
+    
+    #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
+    
+    autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
+    
+    #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
+    earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
+    history=autoencoder.fit(x_train_noisy, x_train, epochs=epochs, batch_size=batch_size, \
+                              shuffle=False, validation_data=(x_test,x_test), callbacks=[earlystopper]) #verbose=0,
+    #errors = np.add(autoencoder.predict(x_in),-x_in)
+    y=autoencoder.predict(x)
     # saving results of error distribution tests
-    # A=np.zeros((5))
-    # A[0]=chi2test(errors)
-    # A[1]=pesarantest(errors)
-    # A[2]=portmanteau(errors,1)
-    # A[3]=portmanteau(errors,3)
-    # A[4]=portmanteau(errors,5)
-
-    # autoencoder.summary()
-
+    #A=np.zeros((5))
+    #A[0]=chi2test(errors)
+    #A[1]=pesarantest(errors)
+    #A[2]=portmanteau(errors,1)
+    #A[3]=portmanteau(errors,3)
+    #A[4]=portmanteau(errors,5)
+        
+    #autoencoder.summary()
+    
     # plot accuracy and loss of autoencoder
     # plot_accuracy(history)
     # plot_loss(history)
-
+    
     # plot original, encoded and decoded data for some stock
     # plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
-
+    
     # the histogram of the data
     # make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')
-
-    # CLOSE TF SESSION
+    
+    #CLOSE TF SESSION
     K.clear_session()
     return y
 
 def MVO(mu, Sigma, min_ret):
+    mu = np.array(mu)
     Sigma = np.array(Sigma)
     N = mu.shape[0]
-    mu = np.array(mu).reshape((N,1))
-
 
     # Define optimization problem
     objective_function = lambda w : np.transpose(w) @ Sigma @ w
@@ -138,7 +145,7 @@ def MVO(mu, Sigma, min_ret):
     return_constraint = lambda w : np.transpose(w) @ mu - min_ret
 
     # Initialize
-    w0 = np.zeros((N,1))
+    w0 = np.zeros((1, N))
     w0[:] = 1/N
     b = [0, 1] # bounds
     bnds = [np.transpose(b)] * N
@@ -243,10 +250,11 @@ finished = False
 portfolio_returns_diag = np.zeros((num_obs,1))
 portfolio_returns_threshold = np.zeros((num_obs,1))
 while finished is False:
-    print('t = ', t)
+    print(t)
     test_passed = False
     counter = 0
     while test_passed == False:
+        print(counter)
         counter += 1
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
@@ -257,7 +265,7 @@ while finished is False:
         A[2] = portmanteau(errors, 1)
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
-        if (A[0] < chi2_bound and abs(A[1]) < z_bound):
+        if (A[0] < chi2_bound and abs(A[1]) < z_bound) or True:
             auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
             num_stock = auto_data.shape[1]
             r_pred_auto = np.zeros((num_obs, num_stock))
@@ -307,7 +315,8 @@ while finished is False:
                                                s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
 
             auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
-            portfolio_returns_threshold[t:t+252] = x[t:t+252, :] @ auto_weights_threshold
+            log_returns_threshold = np.log(x[t:t+252, :]+1)
+            portfolio_returns_threshold[t:t+252] = log_returns_threshold @ auto_weights_threshold
             test_passed = True
 
     if t == num_obs - 252:
@@ -316,6 +325,3 @@ while finished is False:
         t = num_obs - 252
     else:
         t = t + 252
-
-pd.DataFrame(np.concatenate([portfolio_returns_threshold, portfolio_returns_diag], axis=1)).to_csv('yearly_portfolio_returns.csv')
-pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE.csv')
