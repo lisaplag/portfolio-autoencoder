@@ -242,11 +242,10 @@ finished = False
 portfolio_returns_diag = np.zeros((num_obs,1))
 portfolio_returns_threshold = np.zeros((num_obs,1))
 while finished is False:
-    print(t)
+    print('t = ', t)
     test_passed = False
     counter = 0
     while test_passed == False:
-        print(counter)
         counter += 1
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
@@ -257,7 +256,7 @@ while finished is False:
         A[2] = portmanteau(errors, 1)
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
-        if (A[0] < chi2_bound and abs(A[1]) < z_bound) or True:
+        if (A[0] < chi2_bound and abs(A[1]) < z_bound):
             auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
             num_stock = auto_data.shape[1]
             r_pred_auto = np.zeros((num_obs, num_stock))
@@ -307,8 +306,7 @@ while finished is False:
                                                s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
 
             auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
-            log_returns_threshold = np.log(x[t:t+252, :]+1)
-            portfolio_returns_threshold[t:t+252] = log_returns_threshold @ auto_weights_threshold
+            portfolio_returns_threshold[t:t+252] = x[t:t+252, :] @ auto_weights_threshold
             test_passed = True
 
     if t == num_obs - 252:
@@ -317,3 +315,6 @@ while finished is False:
         t = num_obs - 252
     else:
         t = t + 252
+
+pd.DataFrame(np.concatenate([portfolio_returns_threshold, portfolio_returns_diag], axis=1)).to_csv('yearly_portfolio_returns.csv')
+pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE.csv')
