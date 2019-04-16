@@ -139,14 +139,14 @@ def MVO(mu, Sigma, min_ret):
 
     # Initialize
     w0 = np.zeros((N,1))
-    w0[:] = 1/N
+    w0[-1] = 1
     b = [0, 1] # bounds
     bnds = [np.transpose(b)] * N
     cons = [{'type': 'eq', 'fun': weight_constraint},
             {'type': 'ineq', 'fun': return_constraint}]
 
     # Minimize
-    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons, options={'ftol': 1e-10})
+    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons, options={'ftol': 1e-30})
     weights = solution.x
     return weights.reshape((N,1))
 
@@ -200,7 +200,7 @@ num_stock = dataset.shape[1]  # not including the risk free stock
 chi2_bound = 6.635
 z_bound = 2.58
 runs = 1
-labda = 0.97
+labda = 0.94
 s = 500
 x = np.matrix(dataset.iloc[:first_period, :])
 num_obs = first_period
@@ -242,6 +242,9 @@ x_norf = np.matrix(np.array(x)[:, :-1])
 finished = False
 portfolio_returns_diag = np.zeros((num_obs,1))
 portfolio_returns_threshold = np.zeros((num_obs,1))
+weights_diag = np.zeros((1,num_obs))
+weights_threshold = np.zeros((1,num_obs))
+
 while finished is False:
     print('t = ', t)
     test_passed = False
@@ -295,8 +298,10 @@ while finished is False:
                                                s_pred_auto_diag[i, :num_stock, :num_stock]).mean()
 
             auto_weights_diag = MVO(r_pred_auto[t,:], s_pred_auto_diag[t,:,:], 0.0001)
-            log_returns_diag = np.log(x[t:t+252, :]+1)
-            portfolio_returns_diag[t:t+252] = log_returns_diag @ auto_weights_diag
+            diag_weights_norf = auto_weights_diag/(1-auto_weights_diag[-1])
+            diag_weights_norf[-1] = 0
+            portfolio_returns_diag[t:t+252] = x[t:t+252, :] @ diag_weights_norf
+            weights_diag = np.concatenate((weights_diag, diag_weights_norf.transpose()))
 
             # Threshold
             adapted_ecov, fraction_restored = adaptive_threshold_EWMA(resids, 0.25, t)
@@ -307,7 +312,10 @@ while finished is False:
                                                s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
 
             auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
-            portfolio_returns_threshold[t:t+252] = x[t:t+252, :] @ auto_weights_threshold
+            threshold_weights_norf = auto_weights_threshold/(1-auto_weights_threshold[-1])
+            threshold_weights_norf[-1] = 0
+            portfolio_returns_threshold[t:t+252] = x[t:t+252, :] @ threshold_weights_norf
+            weights_threshold = np.concatenate((weights_threshold, threshold_weights_norf.transpose()))
             test_passed = True
 
     if t == num_obs - 252:
@@ -317,5 +325,8 @@ while finished is False:
     else:
         t = t + 252
 
-pd.DataFrame(np.concatenate([portfolio_returns_threshold, portfolio_returns_diag], axis=1)).to_csv('yearly_portfolio_returns.csv')
+log_returns_diag = np.log(portfolio_returns_diag+1)
+log_returns_threshold = np.log(portfolio_returns_threshold+1)
+
+pd.DataFrame(np.concatenate([log_returns_threshold, log_returns_diag], axis=1)).to_csv('yearly_portfolio_returns.csv')
 pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE.csv')
