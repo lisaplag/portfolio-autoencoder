@@ -127,9 +127,10 @@ def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neuron
     return y
 
 def MVO(mu, Sigma, min_ret):
-    mu = np.array(mu)
     Sigma = np.array(Sigma)
     N = mu.shape[0]
+    mu = np.array(mu).reshape((N,1))
+
 
     # Define optimization problem
     objective_function = lambda w : np.transpose(w) @ Sigma @ w
@@ -137,7 +138,7 @@ def MVO(mu, Sigma, min_ret):
     return_constraint = lambda w : np.transpose(w) @ mu - min_ret
 
     # Initialize
-    w0 = np.zeros((1, N))
+    w0 = np.zeros((N,1))
     w0[:] = 1/N
     b = [0, 1] # bounds
     bnds = [np.transpose(b)] * N
