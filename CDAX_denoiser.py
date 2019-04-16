@@ -159,27 +159,28 @@ results=np.zeros((5,3,5,100))
 #print(resultstest)
 
 # loop over different autoencoders
-counter=120
+counter=0
 for i in range(0,5):
   for j in range(0,3):
     np.random.seed(1)
     rn.seed(12345)        
     tf.set_random_seed(1234)
-    for k in range(0,20):
+    for k in range(0,100):
       results[i,j,:,k]=advanced_autoencoder(x_in,1000,10,'elu',different_depths[i],different_neurons[j])
       print(results[i,j,:,k])
       counter=counter+1
       print(counter)
       
 coun=0   
-test_stats=np.zeros((300,7))
+test_stats=np.zeros((1500,7))
 for i in range(0,5):
     for j in range(0,3):
-        for k in range(0,20):
+        for k in range(0,100):
             test_stats[coun,0]=different_depths[i]
             test_stats[coun,1]=different_neurons[j]
             test_stats[coun,2:]=results[i,j,:,k]
             coun=coun+1
+            print(coun)
             
 significant_stats=np.zeros((1,7))
 chi2_bound=6.635
@@ -196,7 +197,7 @@ portmanteau1_counter=0
 portmanteau3_counter=0
 portmanteau5_counter=0
 portmanteau_stats=np.zeros((1,7))
-for i in range(0,300):
+for i in range(0,1500):
     if abs((test_stats[i,4]-portmanteau_mean1)/portmanteau_stdev1)<z_bound:
         portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)
         portmanteau1_counter=portmanteau1_counter+1 
@@ -206,7 +207,7 @@ for i in range(0,300):
     elif abs((test_stats[i,6]-portmanteau_mean3)/portmanteau_stdev3)<z_bound:
         portmanteau_stats=np.concatenate((portmanteau_stats,np.matrix(test_stats[i,:])),axis=0)   
         portmanteau5_counter=portmanteau5_counter+1 
-for i in range(0,300):
+for i in range(0,1500):
     if test_stats[i,2]<chi2_bound:
         significant_stats=np.concatenate((significant_stats,np.matrix(test_stats[i,:])),axis=0)
         chi_counter=chi_counter+1    
@@ -228,13 +229,13 @@ for i in range(0,300):
 #        portmanteau5_counter=portmanteau5_counter+1
 
 significant_stats2=np.zeros((1,7))
-for i in range(0,300):
+for i in range(0,1500):
     if test_stats[i,2]<chi2_bound:
         significant_stats2=np.concatenate((significant_stats2,np.matrix(test_stats[i,:])),axis=0)   
     elif abs(test_stats[i,3])<z_bound:
         significant_stats2=np.concatenate((significant_stats2,np.matrix(test_stats[i,:])),axis=0)
 
 significant_stats3=np.zeros((1,7))
-for i in range(0,300):
+for i in range(0,1500):
     if test_stats[i,2]<chi2_bound and abs(test_stats[i,3])<z_bound:
         significant_stats3=np.concatenate((significant_stats3,np.matrix(test_stats[i,:])),axis=0)   
