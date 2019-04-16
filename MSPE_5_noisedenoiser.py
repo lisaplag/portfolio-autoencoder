@@ -61,6 +61,15 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     K.set_session(sess)
     num_stock=len(x_in.columns)
     
+    #make noisy data  
+    num_obs_in=len(x_in.index)
+    in_fraction_dn=int(0.85*num_obs_in)
+    x_train=x_in[:in_fraction_dn] #in-smaple training subsample
+    x_test=x_in[in_fraction_dn:] #in-sample testing subsample
+    
+    noise_factor = 0.01
+    x_train_noisy = x_train + noise_factor * np.random.standard_t(df=3, size=x_train.shape)
+         
     # activation functions    
     if activations == 'elu':
         function = ELU(alpha=1.0)
@@ -93,8 +102,8 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     
     #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
-    history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
+    history=autoencoder.fit(x_train_noisy, x_train, epochs=epochs, batch_size=batch_size, \
+                              shuffle=False, validation_data=(x_test,x_test), callbacks=[earlystopper]) #verbose=0,
     #errors = np.add(autoencoder.predict(x_in),-x_in)
     y=autoencoder.predict(x)
     # saving results of error distribution tests
@@ -220,10 +229,10 @@ for q in range(0,500):
         outcomes_rej_both=np.concatenate((outcomes_rej_both,res),axis=0)
 
 outcomes_mooi = pd.DataFrame(outcomes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_mooi.to_csv('./data/results/outcomes_not_rej.csv')
+outcomes_mooi.to_csv('./data/results/dn_outcomes_not_rej.csv')
 outcomes_rej_pes_mooi = pd.DataFrame(outcomes_rej_pes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_pes_mooi.to_csv('./data/results/outcomes_rej_pes.csv')
+outcomes_rej_pes_mooi.to_csv('./data/results/dn_outcomes_rej_pes.csv')
 outcomes_rej_chi2_mooi = pd.DataFrame(outcomes_rej_chi2, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_chi2_mooi.to_csv('./data/results/outcomes_rej_chi2.csv')
+outcomes_rej_chi2_mooi.to_csv('./data/results/dn_outcomes_rej_chi2.csv')
 outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_both_mooi.to_csv('./data/results/outcomes_rej_both.csv')
+outcomes_rej_both_mooi.to_csv('./data/results/dn_outcomes_rej_both.csv')
