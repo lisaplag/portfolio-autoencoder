@@ -146,7 +146,7 @@ def MVO(mu, Sigma, min_ret):
             {'type': 'ineq', 'fun': return_constraint}]
 
     # Minimize
-    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons)
+    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons, options={'ftol': 1e-10})
     weights = solution.x
     return weights.reshape((N,1))
 
