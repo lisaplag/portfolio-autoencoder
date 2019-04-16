@@ -160,7 +160,7 @@ for i in range(1,num_obs):
 
 f_errors=r_pred-x
 MSPE_r=np.square(f_errors[num_obs-in_fraction:,:num_stock]).mean()
-for i in range(num_obs-in_fraction,num_obs):
+for i in range(in_fraction,num_obs):
   MSPE_sigma=MSPE_sigma+np.square(np.outer(f_errors[i:i+1,:],f_errors[i:i+1,:])-s_pred[i,:num_stock,:num_stock]).mean()
 MSPE_sigma=MSPE_sigma/(num_obs-in_fraction)
 
@@ -202,7 +202,7 @@ for q in range(0,500):
            
     f_errors_auto=r_pred_auto-x
     MSPE_r_auto=np.square(f_errors_auto[num_obs-in_fraction:,:num_stock]).mean()
-    for i in range(num_obs-in_fraction,num_obs):
+    for i in range(in_fraction,num_obs):
         MSPE_sigma_auto=MSPE_sigma_auto+np.square(np.outer(f_errors_auto[i:i+1,:],f_errors_auto[i:i+1,:])-s_pred_auto[i,:num_stock,:num_stock]).mean()
     MSPE_sigma_auto=MSPE_sigma_auto/(num_obs-in_fraction)
     res=np.zeros((1,7))
@@ -218,6 +218,11 @@ for q in range(0,500):
     else:
         outcomes_rej_both=np.concatenate((outcomes_rej_both,res),axis=0)
 
-
-
-
+outcomes_mooi = pd.DataFrame(outcomes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+outcomes_mooi.to_csv('./data/results/outcomes_not_rej.csv')
+outcomes_rej_pes_mooi = pd.DataFrame(outcomes_rej_pes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+outcomes_rej_pes_mooi.to_csv('./data/results/outcomes_rej_pes.csv')
+outcomes_rej_chi2_mooi = pd.DataFrame(outcomes_rej_chi2, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+outcomes_rej_chi2_mooi.to_csv('./data/results/outcomes_rej_chi2.csv')
+outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+outcomes_rej_both_mooi.to_csv('./data/results/outcomes_rej_both.csv')

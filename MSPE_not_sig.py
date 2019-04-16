@@ -160,7 +160,7 @@ for i in range(1,num_obs):
 
 f_errors=r_pred-x
 MSPE_r=np.square(f_errors[num_obs-in_fraction:,:num_stock]).mean()
-for i in range(num_obs-in_fraction,num_obs):
+for i in range(in_fraction,num_obs):
   MSPE_sigma=MSPE_sigma+np.square(np.outer(f_errors[i:i+1,:],f_errors[i:i+1,:])-s_pred[i,:num_stock,:num_stock]).mean()
 MSPE_sigma=MSPE_sigma/(num_obs-in_fraction)
 
