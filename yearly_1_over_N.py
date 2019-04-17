@@ -181,8 +181,8 @@ def adaptive_threshold_EWMA(e, tau, t):
     fraction_restored = n_nonzeros/(T*N*(N-1))
     return adapted_ecov, fraction_restored
 
-dataset = data.import_data('CDAX_without_penny_stocks')
-mktrf, rf = get_rf('daily', True)
+dataset = data.import_data('NASDAQ_without_penny_stocks')
+mktrf, rf = get_rf('daily', False)
 dataset = join_risky_with_riskless(dataset, rf)
 rf_merged = np.array(dataset['rf'])
 rf_merged = rf_merged.reshape((rf_merged.shape[0],1))
@@ -283,4 +283,4 @@ while finished is False:
 log_returns_original = np.log(portfolio_returns_original+1)
 log_returns_oneoverN = np.log(portfolio_returns_oneoverN+1)
 
-pd.DataFrame(np.concatenate([portfolio_returns_original, portfolio_returns_oneoverN], axis=1)).to_csv('./data/results/yearly_portfolio_returns_oneoverN.csv')
+pd.DataFrame(np.concatenate([log_returns_original, log_returns_oneoverN], axis=1)).to_csv('./data/results/yearly_portfolio_returns_oneoverN_NASDAQ.csv')
