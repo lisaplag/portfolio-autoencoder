@@ -276,6 +276,7 @@ while finished is False:
     outcomes_rej_chi2 = np.concatenate((outcomes_rej_chi2, separator), axis=0)
     outcomes_rej_both = np.concatenate((outcomes_rej_both, separator), axis=0)
 
+
     if t == num_obs - 252:
         finished = True
     if num_obs - t < 504:

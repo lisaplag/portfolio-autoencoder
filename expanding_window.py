@@ -116,10 +116,31 @@ def adaptive_threshold(R, e, tau):
                     adapted_ecov[i,j] = 0
     return adapted_ecov
 
+def adaptive_threshold_EWMA(e, tau):
+    e = np.array(e)
+    T,N = e.shape
+    ecov = np.array(pd.DataFrame(e).ewm(alpha=0.03).cov())
+    ecov = np.nan_to_num(ecov)
+    adapted_ecov = np.array(ecov[-N:].copy())
+    theta_old = np.zeros((N,N))
+    theta_new = np.zeros((N,N))
+    for t in range(T):
+        for i in range(N):
+            for j in range(N):
+                if i == j:
+                    continue
+                else:
+                    theta_new[i,j] = 0.03 * np.square(e[t,i] * e[t,j] - ecov[t*N+i,j]) + 0.97 * theta_old[i,j]
+        theta_old = theta_new
+    for i in range(N):
+        for j in range(N):
+            if i == j:
+                continue
+            elif ecov[-N+i,j] < np.sqrt(theta_new[i,j]) * tau:
+                adapted_ecov[i, j] = 0
+    return adapted_ecov
+
 x = import_data('NASDAQ_without_penny_stocks')
 index = 'NASDAQ_without_penny_stocks'
-window_size = 21
-startup_period = 504
-min_ret = 0.001
-
-portfolio_returns_a, portfolio_returns_o = expanding_window(index,window_size,startup_period,min_ret)
+e = x.iloc[:,:5]
+a = adaptive_threshold_EWMA(e, 1)
