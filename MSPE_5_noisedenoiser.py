@@ -103,7 +103,7 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
     history=autoencoder.fit(x_train_noisy, x_train, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_data=(x_test,x_test), callbacks=[earlystopper]) #verbose=0,
+                              shuffle=False, validation_data=(x_test,x_test),verbose=0, callbacks=[earlystopper])
     #errors = np.add(autoencoder.predict(x_in),-x_in)
     y=autoencoder.predict(x)
     # saving results of error distribution tests
@@ -184,6 +184,7 @@ tf.set_random_seed(5121234)
 #prediction autoencoded data
 for q in range(0,500):
     auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
+    print(q)
     auto_data=np.matrix(auto_data)
     errors = np.add(auto_data[:in_fraction,:],-x_in)
     A=np.zeros((5))
@@ -236,3 +237,10 @@ outcomes_rej_chi2_mooi = pd.DataFrame(outcomes_rej_chi2, columns=['Chi2', 'Pesar
 outcomes_rej_chi2_mooi.to_csv('./data/results/dn_outcomes_rej_chi2.csv')
 outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
 outcomes_rej_both_mooi.to_csv('./data/results/dn_outcomes_rej_both.csv')
+
+print(outcomes_mooi[1:6].mean())
+print(outcomes_rej_pes_mooi[1:37].mean())
+print(outcomes_rej_chi2_mooi[1:59].mean())
+print(outcomes_rej_both_mooi[1:399].mean())
+
+
