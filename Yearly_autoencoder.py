@@ -4,7 +4,7 @@ Created on Mon Mar 18 09:46:47 2019
 
 @author: tobiashoogteijling
 """
-
+import multiprocessing as mp
 import numpy as np
 import read_data as data
 import tensorflow as tf
@@ -21,7 +21,6 @@ from scipy.optimize import minimize
 from read_data import get_rf, join_risky_with_riskless
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
-from portfolios import autoencoded_portfolio
 import math
 
 def chi2test(u):
@@ -169,7 +168,7 @@ num_stock = dataset.shape[1]  # not including the risk free stock
 chi2_bound = 6.635
 z_bound = 2.58
 runs = 1
-labda = 0.97
+labda = 0.94
 s = 500
 x = np.matrix(dataset.iloc[:first_period, :])
 num_obs = first_period
@@ -200,25 +199,22 @@ MSPE_sigma = MSPE_sigma / (num_obs - in_fraction)
 np.random.seed(121)
 rn.seed(1212345)
 tf.set_random_seed(121234)
-# prediction autoencoded data
+out_fraction = num_obs - in_fraction
 
-MSPE_sigma_auto = np.array(np.zeros((num_obs,1)))
-t = in_fraction
-out_fraction = num_obs-in_fraction
-x_in_norf = x_in.iloc[:, :-1]
-x_norf = np.matrix(np.array(x)[:, :-1])
-finished = False
-portfolio_returns = 0
-M = math.ceil(out_fraction/252)
-res = np.zeros((1,7))
-outcomes_rej_chi2=np.zeros((1,7))
-outcomes_rej_pes=np.zeros((1,7))
-outcomes_rej_both=np.zeros((1,7))
-outcomes=np.zeros((1,7))
-counter = 0
-while finished is False:
-    print(t)
-    for q in range(0, 5):
+Y = int(out_fraction/252)
+# prediction autoencoded data
+def run(times,t):
+    MSPE_sigma_auto = np.array(np.zeros((num_obs,1)))
+    x_in_norf = x_in.iloc[:, :-1]
+    x_norf = np.matrix(np.array(x)[:, :-1])
+    finished = False
+    res = np.zeros((1,7))
+    outcomes_rej_chi2=np.zeros((1,7))
+    outcomes_rej_pes=np.zeros((1,7))
+    outcomes_rej_both=np.zeros((1,7))
+    outcomes=np.zeros((1,7))
+    counter = 0
+    for q in range(0, times):
         print(q)
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
@@ -236,9 +232,6 @@ while finished is False:
         s_pred_auto[0, :num_stock, :num_stock] = np.outer((r_pred_auto[0:1, :num_stock]),
                                                           (r_pred_auto[0:1, :num_stock]))
 
-        weights_auto = np.zeros((num_obs - in_fraction, num_stock))
-        portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
-        portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
         for i in range(1, num_obs):
             if i < s + 1:
                 r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
@@ -276,10 +269,38 @@ while finished is False:
     outcomes_rej_chi2 = np.concatenate((outcomes_rej_chi2, separator), axis=0)
     outcomes_rej_both = np.concatenate((outcomes_rej_both, separator), axis=0)
 
+    return (outcomes, outcomes_rej_pes, outcomes_rej_chi2, outcomes_rej_both)
 
-    if t == num_obs - 252:
-        finished = True
-    if num_obs - t < 504:
-        t = num_obs - 252
-    else:
-        t = t + 252
+
+start_dates = [in_fraction, in_fraction+252, in_fraction+252*2, in_fraction+252*4, in_fraction+252*4, in_fraction+252*5, in_fraction+252*6]
+
+outcomes_rej_chi2 = np.zeros((1, 7))
+outcomes_rej_pes = np.zeros((1, 7))
+outcomes_rej_both = np.zeros((1, 7))
+outcomes = np.zeros((1, 7))
+
+if __name__ == "__main__":
+    pool = mp.Pool(processes=7)
+    results = [pool.apply_async(run, args=(500, t)) for t in start_dates]
+    output = [p.get() for p in results]
+
+    for p in range(7):
+        separator = np.array([p, p, p, p, p, p, p]).reshape((1, 7))
+        outcomes = np.concatenate((outcomes, separator), axis=0)
+        outcomes_rej_pes = np.concatenate((outcomes_rej_pes, separator), axis=0)
+        outcomes_rej_chi2 = np.concatenate((outcomes_rej_chi2, separator), axis=0)
+        outcomes_rej_both = np.concatenate((outcomes_rej_both, separator), axis=0)
+        outcomes = np.concatenate((outcomes, (output[p])[0]), axis=0)
+        outcomes_rej_pes = np.concatenate((outcomes_rej_pes, (output[p])[1]), axis=0)
+        outcomes_rej_chi2 = np.concatenate((outcomes_rej_chi2, (output[p])[2]), axis=0)
+        outcomes_rej_both = np.concatenate((outcomes_rej_both, (output[p])[3]), axis=0)
+
+outcomes = outcomes[~np.all(outcomes == 0, axis=1)]
+outcomes_rej_both = outcomes_rej_both[~np.all(outcomes_rej_both == 0, axis=1)]
+outcomes_rej_chi2 = outcomes_rej_chi2[~np.all(outcomes_rej_chi2 == 0, axis=1)]
+outcomes_rej_pes = outcomes_rej_pes[~np.all(outcomes_rej_pes == 0, axis=1)]
+
+pd.DataFrame(outcomes).to_csv('Yearly_autoencoder_outcomes_mp.csv')
+pd.DataFrame(outcomes_rej_pes).to_csv('Yearly_autoencoder_outcomes_rej_pes_mp.csv')
+pd.DataFrame(outcomes_rej_chi2).to_csv('Yearly_autoencoder_outcomes_rej_chi2_mp.csv')
+pd.DataFrame(outcomes_rej_both).to_csv('Yearly_autoencoder_outcomes_rej_both_mp.csv')
