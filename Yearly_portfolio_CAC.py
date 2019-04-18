@@ -63,7 +63,7 @@ def portmanteau(u, h):
 def advanced_autoencoder(x_in, x, epochs, batch_size, activations, depth, neurons):
     sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
     K.set_session(sess)
-    num_stock = len(x_in.columns)
+    num_stock = x_in.shape[1]
 
     # activation functions
     if activations == 'elu':
@@ -181,29 +181,37 @@ def adaptive_threshold_EWMA(e, tau, t):
     fraction_restored = n_nonzeros/(T*N*(N-1))
     return adapted_ecov, fraction_restored
 
+
+## Import data
 dataset = data.import_data('CAC_without_penny_stocks')
 mktrf, rf = get_rf('daily', False)
 dataset = join_risky_with_riskless(dataset, rf)
 rf_merged = np.array(dataset['rf'])
 rf_merged = rf_merged.reshape((rf_merged.shape[0],1))
 
-np.random.seed(1)
-rn.seed(12345)
-tf.set_random_seed(1234)
+## Set seed
+np.random.seed(121)
+rn.seed(1212345)
+tf.set_random_seed(121234)
 
+## Settings
 num_obs = dataset.shape[0]
-
 in_fraction = int(0.5 * num_obs)
+out_fraction = num_obs-in_fraction
+
 first_period = num_obs
-x_in = dataset.iloc[:in_fraction, :]
-num_stock = dataset.shape[1]  # not including the risk free stock
+num_stock = dataset.shape[1]
 chi2_bound = 6.635
 z_bound = 2.58
 runs = 1
 labda = 0.94
 s = 500
-x = np.matrix(dataset.iloc[:first_period, :])
-num_obs = first_period
+
+x = np.array(dataset)
+x_in = x[:in_fraction, :]
+x_in_norf = x_in[:, :-1]
+x_norf = x[:, :-1]
+
 # predictions standard
 r_pred = np.zeros((num_obs, num_stock))
 s_pred = np.zeros((num_obs, num_stock, num_stock))
@@ -219,7 +227,7 @@ for i in range(1, num_obs):
     else:
         r_pred[i:i + 1, :num_stock] = x[i - s:i, :num_stock].mean(axis=0)
     s_pred[i, :num_stock, :num_stock] = (1 - labda) * np.outer((x[i - 1:i, :num_stock] - r_pred[i - 1:i, :num_stock]), (
-                x[i - 1:i, :num_stock] - r_pred[i - 1:i, :num_stock])) + labda * s_pred[i - 1, :num_stock, :num_stock]
+            x[i - 1:i, :num_stock] - r_pred[i - 1:i, :num_stock])) + labda * s_pred[i - 1, :num_stock, :num_stock]
 
 f_errors = r_pred - x
 MSPE_r = np.square(f_errors[num_obs - in_fraction:, :num_stock]).mean()
@@ -228,23 +236,20 @@ for i in range(num_obs - in_fraction, num_obs):
         np.outer(f_errors[i:i + 1, :], f_errors[i:i + 1, :]) - s_pred[i, :num_stock, :num_stock]).mean()
 MSPE_sigma = MSPE_sigma / (num_obs - in_fraction)
 
-np.random.seed(121)
-rn.seed(1212345)
-tf.set_random_seed(121234)
-# prediction autoencoded data
-
+## Autoencoder setup
 MSPE_sigma_auto_diag = np.array(np.zeros((num_obs,1)))
 MSPE_sigma_auto_threshold = np.array(np.zeros((num_obs,1)))
 t = in_fraction
-out_fraction = num_obs-in_fraction
-x_in_norf = x_in.iloc[:, :-1]
-x_norf = np.matrix(np.array(x)[:, :-1])
-finished = False
+
 portfolio_returns_diag = np.zeros((num_obs,1))
 portfolio_returns_threshold = np.zeros((num_obs,1))
+portfolio_returns_original_mean = np.zeros((num_obs,1))
 weights_diag = np.zeros((num_obs,num_stock))
 weights_threshold = np.zeros((num_obs,num_stock))
+weights_original_mean = np.zeros((num_obs,num_stock))
+autoencoded_returns = np.zeros((num_obs,num_stock, 1))
 
+finished = False
 
 while finished is False:
     print('t = ', t)
@@ -253,8 +258,7 @@ while finished is False:
     while test_passed == False:
         counter += 1
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
-        auto_data = np.matrix(auto_data)
-        errors = pd.DataFrame(np.add(auto_data[:in_fraction, :], -x_in_norf))
+        errors = pd.DataFrame(auto_data[:in_fraction, :] - x_in_norf)
         A = np.zeros((5))
         A[0] = chi2test(errors)
         A[1] = pesarantest(errors)
@@ -262,65 +266,8 @@ while finished is False:
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
         if (A[0] < chi2_bound and abs(A[1]) < z_bound):
-            auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
-            num_stock = auto_data.shape[1]
-            r_pred_auto = np.zeros((num_obs, num_stock))
-            s_pred_auto = np.zeros((num_obs, num_stock, num_stock))
-            s_pred_auto[0, :num_stock, :num_stock] = np.outer((r_pred_auto[0:1, :num_stock]),
-                                                              (r_pred_auto[0:1, :num_stock]))
-
-            weights_auto = np.zeros((num_obs - in_fraction, num_stock))
-            portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
-            portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
-            resids = pd.DataFrame(auto_data-x)
-
-
-            for i in range(1, num_obs):
-                if i < s + 1:
-                    r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
-                else:
-                    r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
-                s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
-                    (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
-                    (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,:num_stock, :num_stock]
-
-            f_errors_auto = r_pred_auto - x
-            MSPE_r_auto = np.square(f_errors_auto[t:t+252, :num_stock]).mean()
-
-            # Add residual volatility
-            resids_vol = resids.ewm(alpha=1-labda).var()
-            s_pred_auto_diag = s_pred_auto.copy()
-            for i in range(1, num_obs):
-                for j in range(0, num_stock-1):
-                    s_pred_auto_diag[i, j, j] = s_pred_auto_diag[i, j, j] + resids_vol.iloc[i,j]
-
-            for i in range(t, t+252):
-                MSPE_sigma_auto_diag[i] = np.square(np.outer(f_errors_auto[i:i + 1, :], f_errors_auto[i:i + 1, :]) -
-                                               s_pred_auto_diag[i, :num_stock, :num_stock]).mean()
-
-            auto_weights_diag = MVO(r_pred_auto[t,:], s_pred_auto_diag[t,:,:], 0.0001)
-            diag_weights_norf = auto_weights_diag/(1-auto_weights_diag[-1])
-            diag_weights_norf[-1] = 0
-            for i in range(t, t+252):
-                portfolio_returns_diag[i] = x[i, :] @ diag_weights_norf
-                diag_weights_norf = diag_weights_norf * np.array(1 + x[i, :]).transpose() / sum(diag_weights_norf)
-                weights_diag[i,:] = diag_weights_norf.transpose()
-
-            # Threshold
-            adapted_ecov, fraction_restored = adaptive_threshold_EWMA(resids, 0.25, t)
-            s_pred_auto_threshold = s_pred_auto + adapted_ecov
-
-            for i in range(t, t+252):
-                MSPE_sigma_auto_threshold[i] = np.square(np.outer(f_errors_auto[i, :], f_errors_auto[i, :]) -
-                                               s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
-
-            auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
-            threshold_weights_norf = auto_weights_threshold/(1-auto_weights_threshold[-1])
-            threshold_weights_norf[-1] = 0
-            for i in range(t,t+252):
-                portfolio_returns_threshold[i] = x[i, :] @ threshold_weights_norf
-                threshold_weights_norf = threshold_weights_norf * np.array(1 + x[i, :]).transpose() / sum(threshold_weights_norf)
-                weights_threshold[i,:] = threshold_weights_norf.transpose()
+            auto_data = np.append(auto_data, np.array(x[:, -1]).reshape((num_obs,1)), axis=1)
+            autoencoded_returns = np.append(autoencoded_returns, auto_data.reshape((auto_data.shape[0], auto_data.shape[1], 1)), axis = 2)
             test_passed = True
 
     if t == num_obs - 252:
@@ -330,8 +277,93 @@ while finished is False:
     else:
         t = t + 252
 
+autoencoded_returns_clean = autoencoded_returns[:,:,1:]
+t = in_fraction
+
+
+## Original MVO
+for i in range(autoencoded_returns_clean.shape[2]):
+    print(i)
+    auto_data = autoencoded_returns_clean[:,:,i]
+    r_pred_auto = np.zeros((num_obs, num_stock))
+    s_pred_auto = np.zeros((num_obs, num_stock, num_stock))
+    s_pred_auto[0, :num_stock, :num_stock] = np.outer((r_pred_auto[0:1, :num_stock]),
+                                                      (r_pred_auto[0:1, :num_stock]))
+
+    weights_auto = np.zeros((num_obs - in_fraction, num_stock))
+    portfolio_ret_auto = np.zeros((num_obs - in_fraction, 1))
+    portfolio_vol_auto = np.zeros((num_obs - in_fraction, 1))
+    resids = pd.DataFrame(auto_data-x)
+
+
+    for i in range(1, num_obs):
+        if i < s + 1:
+            r_pred_auto[i, :num_stock] = auto_data[0:i, :num_stock].mean(axis=0)
+        else:
+            r_pred_auto[i, :num_stock] = auto_data[i - s:i, :num_stock].mean(axis=0)
+        s_pred_auto[i, :num_stock, :num_stock] = (1 - labda) * np.outer(
+            (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock]),
+            (auto_data[i - 1, :num_stock] - r_pred_auto[i - 1, :num_stock])) + labda * s_pred_auto[i - 1,:num_stock, :num_stock]
+
+    f_errors_auto = r_pred_auto - x
+    MSPE_r_auto = np.square(f_errors_auto[t:t+252, :num_stock]).mean()
+
+    # Add residual volatility
+    resids_vol = resids.ewm(alpha=1-labda).var()
+    s_pred_auto_diag = s_pred_auto.copy()
+    for i in range(1, num_obs):
+        for j in range(0, num_stock-1):
+            s_pred_auto_diag[i, j, j] = s_pred_auto_diag[i, j, j] + resids_vol.iloc[i,j]
+
+    for i in range(t, t+252):
+        MSPE_sigma_auto_diag[i] = np.square(np.outer(f_errors_auto[i:i + 1, :], f_errors_auto[i:i + 1, :]) -
+                                            s_pred_auto_diag[i, :num_stock, :num_stock]).mean()
+
+    auto_weights_diag = MVO(r_pred_auto[t,:], s_pred_auto_diag[t,:,:], 0.0001)
+    diag_weights_norf = auto_weights_diag/(1-auto_weights_diag[-1])
+    diag_weights_norf[-1] = 0
+    for i in range(t, t+252):
+        portfolio_returns_diag[i] = x[i, :].reshape((1,num_stock)) @ diag_weights_norf
+        diag_weights_norf = diag_weights_norf * np.array(1 + x[i, :]).transpose().reshape((num_stock,1)) / sum(diag_weights_norf)
+        weights_diag[i,:] = diag_weights_norf.transpose()
+
+    # Use original mean
+    original_mean_weights = MVO(r_pred[t,:], s_pred_auto_diag[t,:,:], 0.0001)
+    original_mean_weights_norf = original_mean_weights/(1-original_mean_weights[-1])
+    original_mean_weights_norf[-1] = 0
+    for i in range(t, t+252):
+        portfolio_returns_original_mean[i] = x[i, :].reshape((1,num_stock)) @ original_mean_weights_norf
+        original_mean_weights_norf = original_mean_weights_norf * np.array(1 + x[i, :]).transpose().reshape((num_stock,1)) / sum(original_mean_weights_norf)
+        weights_original_mean[i,:] = original_mean_weights_norf.transpose()
+
+
+    # Threshold
+    adapted_ecov, fraction_restored = adaptive_threshold_EWMA(resids, 0.25, t)
+    s_pred_auto_threshold = s_pred_auto + adapted_ecov
+
+    for i in range(t, t+252):
+        MSPE_sigma_auto_threshold[i] = np.square(np.outer(f_errors_auto[i, :], f_errors_auto[i, :]) -
+                                                 s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
+
+    auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
+    threshold_weights_norf = auto_weights_threshold/(1-auto_weights_threshold[-1])
+    threshold_weights_norf[-1] = 0
+    for i in range(t,t+252):
+        portfolio_returns_threshold[i] = x[i, :] @ threshold_weights_norf
+        threshold_weights_norf = threshold_weights_norf * np.array(1 + x[i, :]).transpose() / sum(threshold_weights_norf)
+        weights_threshold[i,:] = threshold_weights_norf.transpose()
+
+    if t == num_obs - 252:
+        finished = True
+    if num_obs - t < 504:
+        t = num_obs - 252
+    else:
+        t = t + 252
+
+
 log_returns_diag = np.log(portfolio_returns_diag+1)
 log_returns_threshold = np.log(portfolio_returns_threshold+1)
+log_returns_original_mean = np.log(portfolio_returns_original_mean+1)
 
-pd.DataFrame(np.concatenate([log_returns_threshold, log_returns_diag], axis=1)).to_csv('yearly_portfolio_returns_CAC.csv')
-pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE_CAC.csv')
+pd.DataFrame(np.concatenate([log_returns_diag, log_returns_original_mean, log_returns_threshold], axis=1)).to_csv('./data/results/Yearly_portfolio/yearly_portfolio_returns_CAC2.csv')
+pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('./data/results/Yearly_portfolio/yearly_MSPE_CAC.csv')

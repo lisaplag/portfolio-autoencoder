@@ -3,26 +3,50 @@ RFdaily = 0;
 RF_full = table2array(RFdaily);
 
 %% CDAX
-R_CDAX_ae = csvread("yearly_portfolio_returns.csv",1,1); % Left : threshold, Right: diag
+R_CDAX_ae = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns.csv",1,1); % Left : threshold, Right: diag
 R_threshold_CDAX = R_CDAX_ae(:,1);
 R_diag_CDAX = R_CDAX_ae(:,2);
 
-R_CDAX_bm = csvread("yearly_portfolio_returns_oneoverN.csv",1,1); % Left : original, Right: 1/N
+R_CDAX_bm = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_oneoverN_CDAX.csv",1,1); % Left : original, Right: 1/N
 R_original_CDAX = R_CDAX_bm(:,1);
 R_oneoverN_CDAX = R_CDAX_bm(:,2);
 
+R_CDAX_bm_mw = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_oneoverN_maxweights_CDAX.csv",1,1); % Left : original, Right: 1/N
+R_original_CDAX_mw = R_CDAX_bm_mw(:,1);
+R_oneoverN_CDAX_mw = R_CDAX_bm_mw(:,2);
+
 %% CAC
-R_CAC_ae = csvread("yearly_portfolio_returns_CAC.csv",1,1); % Left : threshold, Right: diag
+R_CAC_ae = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_CAC.csv",1,1); % Left : threshold, Right: diag
 R_threshold_CAC = R_CAC_ae(:,1);
 R_diag_CAC = R_CAC_ae(:,2);
 
-R_CAC_bm = csvread("yearly_portfolio_returns_oneoverN_CAC.csv",1,1); % Left : original, Right: 1/N
+R_CAC_bm = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_oneoverN_CAC.csv",1,1); % Left : original, Right: 1/N
 R_original_CAC = R_CAC_bm(:,1);
 R_oneoverN_CAC = R_CAC_bm(:,2);
 
+R_CAC_bm_mw = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_oneoverN_maxweights_CAC.csv",1,1); % Left : original, Right: 1/N
+R_original_CAC_mw = R_CAC_bm_mw(:,1);
+R_oneoverN_CAC_mw = R_CAC_bm_mw(:,2);
+
+R_CAC_om = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_om_CAC.csv",1,1); % Left : original, Right: 1/N
+R_om_CAC = R_CAC_om(:,2);
+
 
 % Select which portfolios to compare
-R = [R_diag_CAC R_threshold_CAC];
+R1 = R_oneoverN_CAC_mw;
+R2 = R_original_CAC_mw;
+
+% Merge
+s1 = size(R1);
+s2 = size(R2);
+if s1(1) > s2(1)
+    R1 = R1(s1(1)-s2(1)+1:end);
+end
+if s1(1) < s2(1)
+    R2 = R2(s2(1)-s1(1)+1:end);
+end
+    
+R = [R1 R2];
 
 % Remove zero rows
 R( ~any(R,2), : ) = [];

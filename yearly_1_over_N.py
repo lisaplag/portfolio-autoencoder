@@ -139,49 +139,22 @@ def MVO(mu, Sigma, min_ret):
 
     # Initialize
     w0 = np.zeros((N,1))
-    w0[:] = 1/N
-    b = [0, 1] # bounds
-    bnds = [np.transpose(b)] * N
+    w0[:] = 0
+    w0[-1] = 1
+    b = [0, 0.05] # bounds
+    bnds = [np.transpose(b)] * (N-1)
+    bnds.append(np.transpose([0, 0.5]))
     cons = [{'type': 'eq', 'fun': weight_constraint},
             {'type': 'ineq', 'fun': return_constraint}]
 
     # Minimize
-    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons)
+    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons, options={'ftol': 1e-30})
     weights = solution.x
     return weights.reshape((N,1))
 
 
-def adaptive_threshold_EWMA(e, tau, t):
-    e = np.array(e)
-    T,N = e.shape
-    ecov_roll = np.array(pd.DataFrame(e).ewm(alpha=0.03).cov())
-    ecov_roll = np.nan_to_num(ecov_roll)
-    ecov = np.zeros((T,N,N))
-    for t in range(T):
-        ecov[t,:,:] = ecov_roll[t*N:t*N+N]
-    adapted_ecov = np.array(ecov.copy())
-    theta = np.zeros((T,N,N))
-    for t in range(T):
-        print(t)
-        for i in range(N):
-            for j in range(N):
-                if i == j:
-                    continue
-                else:
-                    theta[t,i,j] = 0.03 * np.square(e[t,i] * e[t,j] - ecov[t,i,j]) + 0.97 * theta[t-1,i,j]
 
-        for i in range(N):
-            for j in range(N):
-                if i == j:
-                    continue
-                elif np.abs(ecov[t,i,j]) < np.sqrt(theta[t,i,j]) * tau:
-                    adapted_ecov[t,i,j] = 0
-
-    n_nonzeros = np.count_nonzero(adapted_ecov)-N
-    fraction_restored = n_nonzeros/(T*N*(N-1))
-    return adapted_ecov, fraction_restored
-
-dataset = data.import_data('NASDAQ_without_penny_stocks')
+dataset = data.import_data('CDAX_without_penny_stocks')
 mktrf, rf = get_rf('daily', False)
 dataset = join_risky_with_riskless(dataset, rf)
 rf_merged = np.array(dataset['rf'])
@@ -283,4 +256,4 @@ while finished is False:
 log_returns_original = np.log(portfolio_returns_original+1)
 log_returns_oneoverN = np.log(portfolio_returns_oneoverN+1)
 
-pd.DataFrame(np.concatenate([log_returns_original, log_returns_oneoverN], axis=1)).to_csv('./data/results/yearly_portfolio_returns_oneoverN_NASDAQ.csv')
+pd.DataFrame(np.concatenate([log_returns_original, log_returns_oneoverN], axis=1)).to_csv('./data/results/Yearly_portfolio/yearly_portfolio_returns_oneoverN_maxweights_CDAX.csv')
