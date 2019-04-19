@@ -12,7 +12,7 @@ def sharpe_ratio(x):
 
 R = import_data('results/Yearly_portfolio/yearly_portfolio_returns_CDAX_mp')
 
-R1 = R.iloc[:,1]
+R1 = R.iloc[:,2]
 params = sharpe_ratio(R1)
 
 
