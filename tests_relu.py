@@ -128,7 +128,7 @@ def get_stats(index, iterations, depths, neurons, write=True):
         for k in range(0, iterations):
           stats[counter,0]= different_depths[i]
           stats[counter,1]= different_neurons[j]
-          stats[counter,2:]=advanced_autoencoder(x_in,1000,10,'elu',different_depths[i],different_neurons[j])
+          stats[counter,2:]=advanced_autoencoder(x_in,1000,10,'relu',different_depths[i],different_neurons[j])
           counter=counter+1
           print(counter)
                 
@@ -185,17 +185,17 @@ def get_stats(index, iterations, depths, neurons, write=True):
     if write:
         # removing 0 row and preparing for writing to csv
         stats1 = pd.DataFrame(sig_stats[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
-        stats1.to_csv('./data/results/' + index + '_stats1.csv')
+        stats1.to_csv('./data/results/' + index + '_relu_stats1.csv')
         
         stats2 = pd.DataFrame(sig_stats2[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
-        stats2.to_csv('./data/results/' + index + '_stats2.csv')
+        stats2.to_csv('./data/results/' + index + '_relu_stats2.csv')
         
         stats3 = pd.DataFrame(sig_stats3[1:], columns=['Depth', 'Neurons', 'Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'])
-        stats3.to_csv('./data/results/' + index + '_stats3.csv')
+        stats3.to_csv('./data/results/' + index + '_relu_stats3.csv')
         
         c_list = [chi_count, pesaran_count, portmanteau1_count, portmanteau3_count, portmanteau5_count]
         counts = pd.DataFrame(c_list, index=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5'], columns=['counts'])
-        counts.to_csv('./data/results/' + index + '_counts.csv')
+        counts.to_csv('./data/results/' + index + '_relu_counts.csv')
         
     return counts, stats1, stats2, stats3
 
@@ -218,7 +218,7 @@ def aggregate_stats(stats, depths, neurons, write=True):
     counts_df2 = pd.DataFrame(counts[1], index=neurons, columns=depths)
     counts_df3 = pd.DataFrame(counts[2], index=neurons, columns=depths)
     
-    with pd.ExcelWriter('./data/results/' + index + '_stat_counts.xlsx') as writer: 
+    with pd.ExcelWriter('./data/results/' + index + '_relu_stat_counts.xlsx') as writer: 
         counts_df1.to_excel(writer, sheet_name='Stats1')
         counts_df2.to_excel(writer, sheet_name='Stats2')
         counts_df3.to_excel(writer, sheet_name='Stats3')
@@ -226,19 +226,23 @@ def aggregate_stats(stats, depths, neurons, write=True):
     return counts, counts_df1, counts_df2, counts_df3
     
     
-
-index = 'FTSE_without_penny_stocks'
+    
+index = 'CDAX_without_penny_stocks'
+#index = 'FTSE_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
 different_neurons=[120,100,80]
+#different_neurons=[120,100,80]
 
 counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
 
-#stat1 = data.import_data('results/' + index + '_stats1')
-#stat2 = data.import_data('results/' + index + '_stats2')
-#stat3 = data.import_data('results/' + index + '_stats3')
+stat1 = data.import_data('results/' + index + '_relu_stats1')
+stat2 = data.import_data('results/' + index + '_relu_stats2')
+stat3 = data.import_data('results/' + index + '_relu_stats3')
 
 counts1, sig_counts1, sig_counts2, sig_counts3 = aggregate_stats([stat1, stat2, stat3], different_depths, different_neurons)
+
+
 
 
 
