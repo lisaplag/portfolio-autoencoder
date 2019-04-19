@@ -350,7 +350,7 @@ for i in range(autoencoded_returns_clean.shape[2]):
     threshold_weights_norf[-1] = 0
     for i in range(t,t+252):
         portfolio_returns_threshold[i] = x[i, :] @ threshold_weights_norf
-        threshold_weights_norf = threshold_weights_norf * np.array(1 + x[i, :]).transpose() / sum(threshold_weights_norf)
+        threshold_weights_norf = threshold_weights_norf * np.array(1 + x[i, :]).transpose().reshape((num_stock,1)) / sum(threshold_weights_norf)
         weights_threshold[i,:] = threshold_weights_norf.transpose()
 
     if t == num_obs - 252:

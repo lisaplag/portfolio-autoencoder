@@ -15,6 +15,11 @@ R_CDAX_bm_mw = csvread("../data/results/Yearly_portfolio/yearly_portfolio_return
 R_original_CDAX_mw = R_CDAX_bm_mw(:,1);
 R_oneoverN_CDAX_mw = R_CDAX_bm_mw(:,2);
 
+R_CDAX_final = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_CDAX_mp.csv",1,1); % Left : original, Right: 1/N
+R_diag_CDAX = R_CDAX_final(:,1);
+R_original_mean_CDAX = R_CDAX_final(:,2);
+R_threshold_CDAX = R_CDAX_final(:,3);
+
 %% CAC
 R_CAC_ae = csvread("../data/results/Yearly_portfolio/yearly_portfolio_returns_CAC.csv",1,1); % Left : threshold, Right: diag
 R_threshold_CAC = R_CAC_ae(:,1);
@@ -33,8 +38,8 @@ R_om_CAC = R_CAC_om(:,2);
 
 
 % Select which portfolios to compare
-R1 = R_oneoverN_CAC_mw;
-R2 = R_original_CAC_mw;
+R1 = R_threshold_CDAX;
+R2 = R_original_mean_CDAX;
 
 % Merge
 s1 = size(R1);
