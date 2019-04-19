@@ -261,7 +261,7 @@ while finished is False:
         A[2] = portmanteau(errors, 1)
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
-        if (A[0] < chi2_bound and abs(A[1]) < z_bound):
+        if (A[0] < chi2_bound and abs(A[1]) < z_bound) or True:
             auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
             num_stock = auto_data.shape[1]
             r_pred_auto = np.zeros((num_obs, num_stock))
@@ -306,21 +306,6 @@ while finished is False:
                 diag_weights_norf = diag_weights_norf * np.array(1 + x[i, :]).transpose() / sum(diag_weights_norf)
                 weights_diag[i,:] = diag_weights_norf.transpose()
 
-            # Threshold
-            adapted_ecov, fraction_restored = adaptive_threshold_EWMA(resids, 0.25, t)
-            s_pred_auto_threshold = s_pred_auto + adapted_ecov
-
-            for i in range(t, t+252):
-                MSPE_sigma_auto_threshold[i] = np.square(np.outer(f_errors_auto[i, :], f_errors_auto[i, :]) -
-                                               s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
-
-            auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
-            threshold_weights_norf = auto_weights_threshold/(1-auto_weights_threshold[-1])
-            threshold_weights_norf[-1] = 0
-            for i in range(t,t+252):
-                portfolio_returns_threshold[i] = x[i, :] @ threshold_weights_norf
-                threshold_weights_norf = threshold_weights_norf * np.array(1 + x[i, :]).transpose() / sum(threshold_weights_norf)
-                weights_threshold[i,:] = threshold_weights_norf.transpose()
             test_passed = True
 
     if t == num_obs - 252:
@@ -333,5 +318,5 @@ while finished is False:
 log_returns_diag = np.log(portfolio_returns_diag+1)
 log_returns_threshold = np.log(portfolio_returns_threshold+1)
 
-pd.DataFrame(np.concatenate([log_returns_threshold, log_returns_diag], axis=1)).to_csv('yearly_portfolio_returns_CAC.csv')
-pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE_CAC.csv')
+pd.DataFrame(np.concatenate([log_returns_threshold, log_returns_diag], axis=1)).to_csv('yearly_portfolio_returns_CAC_test.csv')
+pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE_CAC_test.csv')
