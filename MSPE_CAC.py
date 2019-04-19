@@ -11,13 +11,13 @@ import tensorflow as tf
 import random as rn
 from keras import backend as K
 import pandas as pd
-import math
 from keras.layers.advanced_activations import LeakyReLU, ReLU, ELU
 from keras.layers import Input, Dense, GaussianNoise
 from keras.models import Model, Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import HDF5Matrix
 import scipy
+
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
 
@@ -87,35 +87,12 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     # output layer
     autoencoder.add(Dense(num_stock, activation='linear'))
     
-    #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
-    
+    # compiling the model
     autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
-    
-    #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
     history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
                               shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
-    #errors = np.add(autoencoder.predict(x_in),-x_in)
     y=autoencoder.predict(x)
-    # saving results of error distribution tests
-    #A=np.zeros((5))
-    #A[0]=chi2test(errors)
-    #A[1]=pesarantest(errors)
-    #A[2]=portmanteau(errors,1)
-    #A[3]=portmanteau(errors,3)
-    #A[4]=portmanteau(errors,5)
-        
-    #autoencoder.summary()
-    
-    # plot accuracy and loss of autoencoder
-    # plot_accuracy(history)
-    # plot_loss(history)
-    
-    # plot original, encoded and decoded data for some stock
-    # plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
-    
-    # the histogram of the data
-    # make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')
     
     #CLOSE TF SESSION
     K.clear_session()
@@ -128,20 +105,20 @@ rn.seed(12345)
 tf.set_random_seed(1234)
 
 num_obs=dataset.shape[0]
-
-
-
+num_stock=dataset.shape[1] 
 in_fraction=int(0.5*num_obs)
 first_period=num_obs
 x_in=dataset.iloc[:in_fraction,:]
-num_stock=dataset.shape[1] #not including the risk free stock
+
 chi2_bound=6.635
 z_bound=2.58
-runs=1
+runs=500
 labda=0.94
 s=500
+
 x=np.matrix(dataset.iloc[:first_period,:])
 num_obs=first_period
+
 # predictions standard
 r_pred=np.zeros((num_obs,num_stock))
 s_pred=np.zeros((num_obs,num_stock,num_stock))
@@ -171,8 +148,9 @@ outcomes=np.zeros((1,7))
 np.random.seed(5121)
 rn.seed(51212345)        
 tf.set_random_seed(5121234)
+
 #prediction autoencoded data
-for q in range(0,1):
+for q in range(0,runs):
     print(q)
     auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
     auto_data=np.matrix(auto_data)

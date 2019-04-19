@@ -6,34 +6,25 @@ Created on Mon Mar 18 09:46:47 2019
 """
 
 import numpy as np
+import read_data as data
 import tensorflow as tf
 import random as rn
-
-np.random.seed(3)
-rn.seed(3)
-session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
-                              inter_op_parallelism_threads=1)
-
-from keras import backend as K
-tf.set_random_seed(3)
-
-
-import pandas as pd
 import math
-import figures as fg
+from keras import backend as K
+import pandas as pd
 from keras.layers.advanced_activations import LeakyReLU, ReLU, ELU
 from keras.layers import Input, Dense, GaussianNoise
 from keras.models import Model, Sequential
+from keras.callbacks import ModelCheckpoint, EarlyStopping
+from keras.utils import HDF5Matrix
+import scipy
 
-#from keras import regularizers
-#from keras.models import load_model
-#from sklearn.preprocessing import StandardScaler  
-#from collections import defaultdict
-#from sklearn.decomposition import PCA
-#from arch.bootstrap import StationaryBootstrap
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
+                              inter_op_parallelism_threads=1)
 
 
-# old version - not in use anymore
+
+# old version
 def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     num_stock=len(x_in.columns)
     inp = Input(shape=(num_stock,))
@@ -45,12 +36,6 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
         return max(x, 0)
     def lrelu(x):
         return max(0.01*x, x)
-#    if activations == 'gelu':
-#        function = gelu(x)
-#    elif activations == 'lrelu':
-#        function = lrelu(x)
-#    else:
-#        function = relu(x)
     
     # encoding layers of desired depth
     for n in range(1, depth+1):
@@ -92,10 +77,9 @@ def autoencode_data(x_in, epochs, batch_size, activations, depth, neurons):
     print(x_in.std(axis=0).mean())
     print(auto_data.mean(axis=0).mean())
     print(auto_data.std(axis=0).mean())
-
-    #with pd.option_context('display.max_rows', 25, 'display.max_columns', None):
-    #print(auto_data)
     return auto_data
+
+
 
 
 
@@ -130,32 +114,27 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     # output layer
     autoencoder.add(Dense(num_stock, activation='linear'))
     
-    #autoencoder.compile(optimizer='sgd', loss='mean_absolute_error', metrics=['accuracy'])
+    # train the model
     autoencoder.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
-    history = autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_split=0.15, verbose=0)
-    auto_data=pd.DataFrame(autoencoder.predict(x_in))
-    autoencoder.summary()
+    earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
+    history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
+                              shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
     
-    # plot accuracy and loss of autoencoder
-    fg.plot_accuracy(history)
-    fg.plot_loss(history)
+    # saving results of error distribution tests
+    errors = np.add(autoencoder.predict(x_in),-x_in)
+    A=np.zeros((5))
+    A[0]=chi2test(errors)
+    A[1]=pesarantest(errors)
+    A[2]=portmanteau(errors,1)
+    A[3]=portmanteau(errors,3)
+    A[4]=portmanteau(errors,5)
+        
+    #autoencoder.summary()
     
-    # plot original, encoded and decoded data for some stock
-    #fg.plot_two_series(x_in, 'Original data', auto_data, 'Reconstructed data')
-    
-    # the histogram of the data
-    fg.make_histogram(x_in, 'Original data', auto_data, 'Reconstructed data')
-    
-    print(x_in.mean(axis=0).mean())
-    print(x_in.std(axis=0).mean())
-    print(auto_data.mean(axis=0).mean())
-    print(auto_data.std(axis=0).mean())
-
     #CLOSE TF SESSION
     K.clear_session()
+    return A
 
-    return auto_data
     
     
 

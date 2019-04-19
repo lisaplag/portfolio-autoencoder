@@ -89,9 +89,9 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
     history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
                               shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
-    errors = np.add(autoencoder.predict(x_in),-x_in)
     
     # saving results of error distribution tests
+    errors = np.add(autoencoder.predict(x_in),-x_in)
     A=np.zeros((5))
     A[0]=chi2test(errors)
     A[1]=pesarantest(errors)
