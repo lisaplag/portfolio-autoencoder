@@ -18,7 +18,6 @@ from keras.models import Model, Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import HDF5Matrix
 import scipy
-
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
 
@@ -62,15 +61,6 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     K.set_session(sess)
     num_stock=len(x_in.columns)
     
-    #make noisy data  
-    num_obs_in=len(x_in.index)
-    in_fraction_dn=int(0.85*num_obs_in)
-    x_train=x_in[:in_fraction_dn] #in-smaple training subsample
-    x_test=x_in[in_fraction_dn:] #in-sample testing subsample
-    
-    noise_factor = 0.01
-    x_train_noisy = x_train + noise_factor * np.random.standard_t(df=3, size=x_train.shape)
-         
     # activation functions    
     if activations == 'elu':
         function = ELU(alpha=1.0)
@@ -103,8 +93,8 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     
     #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
-    history=autoencoder.fit(x_train_noisy, x_train, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_data=(x_test,x_test),verbose=0, callbacks=[earlystopper])
+    history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
+                              shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
     #errors = np.add(autoencoder.predict(x_in),-x_in)
     y=autoencoder.predict(x)
     # saving results of error distribution tests
@@ -149,7 +139,7 @@ chi2_bound=6.635
 z_bound=2.58
 runs=1
 labda=0.94
-s=500
+s=100
 x=np.matrix(dataset.iloc[:first_period,:])
 num_obs=first_period
 # predictions standard
@@ -164,9 +154,10 @@ MSPE_sigma=0
 for i in range(1,num_obs):
   if i<s+1:
     r_pred[i:i+1,:num_stock]=x[0:i,:num_stock].mean(axis=0)
+    s_pred[i,:num_stock,:num_stock]=np.cov(x[:i,:],rowvar=False)
   else:
     r_pred[i:i+1,:num_stock]=x[i-s:i,:num_stock].mean(axis=0)
-  s_pred[i,:num_stock,:num_stock]=(1-labda)*np.outer((x[i-1:i,:num_stock]-r_pred[i-1:i,:num_stock]),(x[i-1:i,:num_stock]-r_pred[i-1:i,:num_stock]))+labda*s_pred[i-1,:num_stock,:num_stock]
+    s_pred[i,:num_stock,:num_stock]=np.cov(x[i-s:i,:],rowvar=False)
 
 f_errors=r_pred-x
 MSPE_r=np.square(f_errors[num_obs-in_fraction:,:num_stock]).mean()
@@ -177,15 +168,14 @@ MSPE_sigma=MSPE_sigma/(num_obs-in_fraction)
 outcomes_rej_chi2=np.zeros((1,7))
 outcomes_rej_pes=np.zeros((1,7))
 outcomes_rej_both=np.zeros((1,7))
-#outcomes=data.import_data('./results/MSPE_5_outcomes_new')
 outcomes=np.zeros((1,7))
 np.random.seed(5121)
 rn.seed(51212345)        
 tf.set_random_seed(5121234)
 #prediction autoencoded data
-for q in range(0,500):
-    auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
+for q in range(0,100):
     print(q)
+    auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
     auto_data=np.matrix(auto_data)
     errors = np.add(auto_data[:in_fraction,:],-x_in)
     A=np.zeros((5))
@@ -206,9 +196,10 @@ for q in range(0,500):
     for i in range(1,num_obs):
         if i<s+1:
             r_pred_auto[i,:num_stock]=auto_data[0:i,:num_stock].mean(axis=0)
+            s_pred_auto[i,:num_stock,:num_stock]=np.cov(auto_data[:i,:],rowvar=False)
         else:
             r_pred_auto[i,:num_stock]=auto_data[i-s:i,:num_stock].mean(axis=0)
-        s_pred_auto[i,:num_stock,:num_stock]=(1-labda)*np.outer((auto_data[i-1,:num_stock]-r_pred_auto[i-1,:num_stock]),(auto_data[i-1,:num_stock]-r_pred_auto[i-1,:num_stock]))+labda*s_pred_auto[i-1,:num_stock,:num_stock]
+            s_pred_auto[i,:num_stock,:num_stock]=np.cov(auto_data[i-s:i,:],rowvar=False)
         for j in range(0,num_stock):
             s_pred_auto[i,j,j]=s_pred[i,j,j]
            
@@ -221,7 +212,7 @@ for q in range(0,500):
     res[0,:5]=A
     res[0,5]=MSPE_r_auto
     res[0,6]=MSPE_sigma_auto
-    if (A[0]<chi2_bound and abs(A[1])<z_bound):
+    if (A[0]<chi2_bound and abs(A[1])<z_bound) or 1>0:
         outcomes=np.concatenate((outcomes,res),axis=0)
     elif (A[0]<chi2_bound and abs(A[1])>=z_bound):
         outcomes_rej_pes=np.concatenate((outcomes_rej_pes,res),axis=0)
@@ -230,18 +221,14 @@ for q in range(0,500):
     else:
         outcomes_rej_both=np.concatenate((outcomes_rej_both,res),axis=0)
 
-
-# Store results to CSV
-outcomes_mooi = pd.DataFrame(outcomes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_mooi.to_csv('./data/results/dn_outcomes_not_rej.csv')
-outcomes_rej_pes_mooi = pd.DataFrame(outcomes_rej_pes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_pes_mooi.to_csv('./data/results/dn_outcomes_rej_pes.csv')
-outcomes_rej_chi2_mooi = pd.DataFrame(outcomes_rej_chi2, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_chi2_mooi.to_csv('./data/results/dn_outcomes_rej_chi2.csv')
-outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_both_mooi.to_csv('./data/results/dn_outcomes_rej_both.csv')
-
-
+outcomes_50 = pd.DataFrame(outcomes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+outcomes_50.to_csv('./data/results/outcomes100.csv')
+#outcomes_rej_pes_mooi = pd.DataFrame(outcomes_rej_pes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+#outcomes_rej_pes_mooi.to_csv('./data/results/outcomes_rej_pes100.csv')
+#outcomes_rej_chi2_mooi = pd.DataFrame(outcomes_rej_chi2, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+#outcomes_rej_chi2_mooi.to_csv('./data/results/outcomes_rej_chi2100.csv')
+#outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
+#outcomes_rej_both_mooi.to_csv('./data/results/outcomes_rej_both100.csv')
 
 tabel=np.zeros((5,5))
 tabel[0,0]=MSPE_r
@@ -316,9 +303,6 @@ si2[0,3]=scipy.stats.ttest_1samp(outcomes_rej_both[1:,6],MSPE_sigma)[0]
 si2[1,0]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_pes[1:,6],equal_var=False)[0]
 si2[1,1]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_chi2[1:,6],equal_var=False)[0]
 si2[1,2]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_both[1:,6],equal_var=False)[0]
-
-
-
 
 
 

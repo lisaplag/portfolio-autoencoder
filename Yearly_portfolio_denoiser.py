@@ -107,7 +107,7 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
     history=autoencoder.fit(x_train_noisy, x_train, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_data=(x_test,x_test), callbacks=[earlystopper]) #verbose=0,
+                              shuffle=False, validation_data=(x_test,x_test),verbose=0, callbacks=[earlystopper])
     #errors = np.add(autoencoder.predict(x_in),-x_in)
     y=autoencoder.predict(x)
     # saving results of error distribution tests
@@ -133,11 +133,11 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     #CLOSE TF SESSION
     K.clear_session()
     return y
-
 def MVO(mu, Sigma, min_ret):
-    mu = np.array(mu)
     Sigma = np.array(Sigma)
     N = mu.shape[0]
+    mu = np.array(mu).reshape((N,1))
+
 
     # Define optimization problem
     objective_function = lambda w : np.transpose(w) @ Sigma @ w
@@ -145,15 +145,16 @@ def MVO(mu, Sigma, min_ret):
     return_constraint = lambda w : np.transpose(w) @ mu - min_ret
 
     # Initialize
-    w0 = np.zeros((1, N))
-    w0[:] = 1/N
-    b = [0, 1] # bounds
-    bnds = [np.transpose(b)] * N
+    w0 = np.zeros((N,1))
+    w0[-1] = 1
+    b = [0, 0.05] # bounds
+    bnds = [np.transpose(b)] * (N-1)
+    bnds.append(np.transpose([0, 0.5]))
     cons = [{'type': 'eq', 'fun': weight_constraint},
             {'type': 'ineq', 'fun': return_constraint}]
 
     # Minimize
-    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons)
+    solution = minimize(objective_function, w0, method='SLSQP', bounds=bnds, constraints=cons, options={'ftol': 1e-30})
     weights = solution.x
     return weights.reshape((N,1))
 
@@ -161,7 +162,7 @@ def MVO(mu, Sigma, min_ret):
 def adaptive_threshold_EWMA(e, tau, t):
     e = np.array(e)
     T,N = e.shape
-    ecov_roll = np.array(pd.DataFrame(e).ewm(alpha=0.03).cov())
+    ecov_roll = np.array(pd.DataFrame(e).ewm(alpha=0.06).cov())
     ecov_roll = np.nan_to_num(ecov_roll)
     ecov = np.zeros((T,N,N))
     for t in range(T):
@@ -169,13 +170,12 @@ def adaptive_threshold_EWMA(e, tau, t):
     adapted_ecov = np.array(ecov.copy())
     theta = np.zeros((T,N,N))
     for t in range(T):
-        print(t)
         for i in range(N):
             for j in range(N):
                 if i == j:
                     continue
                 else:
-                    theta[t,i,j] = 0.03 * np.square(e[t,i] * e[t,j] - ecov[t,i,j]) + 0.97 * theta[t-1,i,j]
+                    theta[t,i,j] = 0.06 * np.square(e[t,i] * e[t,j] - ecov[t,i,j]) + 0.94 * theta[t-1,i,j]
 
         for i in range(N):
             for j in range(N):
@@ -188,8 +188,8 @@ def adaptive_threshold_EWMA(e, tau, t):
     fraction_restored = n_nonzeros/(T*N*(N-1))
     return adapted_ecov, fraction_restored
 
-dataset = data.import_data('CDAX_without_penny_stocks')
-mktrf, rf = get_rf('daily', True)
+dataset = data.import_data('CAC_without_penny_stocks')
+mktrf, rf = get_rf('daily', False)
 dataset = join_risky_with_riskless(dataset, rf)
 rf_merged = np.array(dataset['rf'])
 rf_merged = rf_merged.reshape((rf_merged.shape[0],1))
@@ -207,7 +207,7 @@ num_stock = dataset.shape[1]  # not including the risk free stock
 chi2_bound = 6.635
 z_bound = 2.58
 runs = 1
-labda = 0.97
+labda = 0.94
 s = 500
 x = np.matrix(dataset.iloc[:first_period, :])
 num_obs = first_period
@@ -249,12 +249,15 @@ x_norf = np.matrix(np.array(x)[:, :-1])
 finished = False
 portfolio_returns_diag = np.zeros((num_obs,1))
 portfolio_returns_threshold = np.zeros((num_obs,1))
+weights_diag = np.zeros((num_obs,num_stock))
+weights_threshold = np.zeros((num_obs,num_stock))
+
+
 while finished is False:
-    print(t)
+    print('t = ', t)
     test_passed = False
     counter = 0
     while test_passed == False:
-        print(counter)
         counter += 1
         auto_data = advanced_autoencoder(x_in_norf, x_norf, 1000, 10, 'elu', 3, 100)
         auto_data = np.matrix(auto_data)
@@ -265,7 +268,7 @@ while finished is False:
         A[2] = portmanteau(errors, 1)
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
-        if (A[0] < chi2_bound and abs(A[1]) < z_bound) or True:
+        if (A[0] < chi2_bound and abs(A[1]) < z_bound):
             auto_data = np.append(auto_data, np.array(x[:, -1]), axis=1)
             num_stock = auto_data.shape[1]
             r_pred_auto = np.zeros((num_obs, num_stock))
@@ -292,7 +295,7 @@ while finished is False:
             MSPE_r_auto = np.square(f_errors_auto[t:t+252, :num_stock]).mean()
 
             # Add residual volatility
-            resids_vol = resids.ewm(alpha=0.03).var()
+            resids_vol = resids.ewm(alpha=1-labda).var()
             s_pred_auto_diag = s_pred_auto.copy()
             for i in range(1, num_obs):
                 for j in range(0, num_stock-1):
@@ -303,20 +306,28 @@ while finished is False:
                                                s_pred_auto_diag[i, :num_stock, :num_stock]).mean()
 
             auto_weights_diag = MVO(r_pred_auto[t,:], s_pred_auto_diag[t,:,:], 0.0001)
-            log_returns_diag = np.log(x[t:t+252, :]+1)
-            portfolio_returns_diag[t:t+252] = log_returns_diag @ auto_weights_diag
-
-            # Threshold
-            adapted_ecov, fraction_restored = adaptive_threshold_EWMA(resids, 0.25, t)
-            s_pred_auto_threshold = s_pred_auto + adapted_ecov
-
+            diag_weights_norf = auto_weights_diag/(1-auto_weights_diag[-1])
+            diag_weights_norf[-1] = 0
             for i in range(t, t+252):
-                MSPE_sigma_auto_threshold[i] = np.square(np.outer(f_errors_auto[i, :], f_errors_auto[i, :]) -
-                                               s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
+                portfolio_returns_diag[i] = x[i, :] @ diag_weights_norf
+                diag_weights_norf = diag_weights_norf * np.array(1 + x[i, :]).transpose() / sum(diag_weights_norf)
+                weights_diag[i,:] = diag_weights_norf.transpose()
 
-            auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
-            log_returns_threshold = np.log(x[t:t+252, :]+1)
-            portfolio_returns_threshold[t:t+252] = log_returns_threshold @ auto_weights_threshold
+#            # Threshold
+#            adapted_ecov, fraction_restored = adaptive_threshold_EWMA(resids, 0.25, t)
+#            s_pred_auto_threshold = s_pred_auto + adapted_ecov
+#
+#            for i in range(t, t+252):
+#                MSPE_sigma_auto_threshold[i] = np.square(np.outer(f_errors_auto[i, :], f_errors_auto[i, :]) -
+#                                               s_pred_auto_threshold[i, :num_stock, :num_stock]).mean()
+#
+#            auto_weights_threshold = MVO(r_pred_auto[t,:], s_pred_auto_threshold[t,:,:], 0.0001)
+#            threshold_weights_norf = auto_weights_threshold/(1-auto_weights_threshold[-1])
+#            threshold_weights_norf[-1] = 0
+#            for i in range(t,t+252):
+#                portfolio_returns_threshold[i] = x[i, :] @ threshold_weights_norf
+#                threshold_weights_norf = threshold_weights_norf * np.array(1 + x[i, :]).transpose() / sum(threshold_weights_norf)
+#                weights_threshold[i,:] = threshold_weights_norf.transpose()
             test_passed = True
 
     if t == num_obs - 252:
@@ -325,3 +336,9 @@ while finished is False:
         t = num_obs - 252
     else:
         t = t + 252
+
+log_returns_diag = np.log(portfolio_returns_diag+1)
+log_returns_threshold = np.log(portfolio_returns_threshold+1)
+
+pd.DataFrame(np.concatenate([log_returns_threshold, log_returns_diag], axis=1)).to_csv('yearly_portfolio_returns_CAC.csv')
+pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('yearly_MSPE_CAC.csv')

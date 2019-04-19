@@ -18,7 +18,6 @@ from keras.models import Model, Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import HDF5Matrix
 import scipy
-
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
 
@@ -62,15 +61,6 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     K.set_session(sess)
     num_stock=len(x_in.columns)
     
-    #make noisy data  
-    num_obs_in=len(x_in.index)
-    in_fraction_dn=int(0.85*num_obs_in)
-    x_train=x_in[:in_fraction_dn] #in-smaple training subsample
-    x_test=x_in[in_fraction_dn:] #in-sample testing subsample
-    
-    noise_factor = 0.01
-    x_train_noisy = x_train + noise_factor * np.random.standard_t(df=3, size=x_train.shape)
-         
     # activation functions    
     if activations == 'elu':
         function = ELU(alpha=1.0)
@@ -103,8 +93,8 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     
     #checkpointer = ModelCheckpoint(filepath='weights.{epoch:02d}-{val_loss:.2f}.txt', verbose=0, save_best_only=True)
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
-    history=autoencoder.fit(x_train_noisy, x_train, epochs=epochs, batch_size=batch_size, \
-                              shuffle=False, validation_data=(x_test,x_test),verbose=0, callbacks=[earlystopper])
+    history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
+                              shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
     #errors = np.add(autoencoder.predict(x_in),-x_in)
     y=autoencoder.predict(x)
     # saving results of error distribution tests
@@ -132,7 +122,7 @@ def advanced_autoencoder(x_in,x, epochs, batch_size, activations, depth, neurons
     return y
     
 
-dataset = data.import_data('CDAX_without_penny_stocks')
+dataset = data.import_data('CAC_without_penny_stocks')
 np.random.seed(1)
 rn.seed(12345)        
 tf.set_random_seed(1234)
@@ -177,15 +167,14 @@ MSPE_sigma=MSPE_sigma/(num_obs-in_fraction)
 outcomes_rej_chi2=np.zeros((1,7))
 outcomes_rej_pes=np.zeros((1,7))
 outcomes_rej_both=np.zeros((1,7))
-#outcomes=data.import_data('./results/MSPE_5_outcomes_new')
 outcomes=np.zeros((1,7))
 np.random.seed(5121)
 rn.seed(51212345)        
 tf.set_random_seed(5121234)
 #prediction autoencoded data
-for q in range(0,500):
-    auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
+for q in range(0,1):
     print(q)
+    auto_data=advanced_autoencoder(x_in,x,1000,10,'elu',3,100)
     auto_data=np.matrix(auto_data)
     errors = np.add(auto_data[:in_fraction,:],-x_in)
     A=np.zeros((5))
@@ -230,18 +219,14 @@ for q in range(0,500):
     else:
         outcomes_rej_both=np.concatenate((outcomes_rej_both,res),axis=0)
 
-
-# Store results to CSV
 outcomes_mooi = pd.DataFrame(outcomes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_mooi.to_csv('./data/results/dn_outcomes_not_rej.csv')
+outcomes_mooi.to_csv('./data/results/outcomes_cac.csv')
 outcomes_rej_pes_mooi = pd.DataFrame(outcomes_rej_pes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_pes_mooi.to_csv('./data/results/dn_outcomes_rej_pes.csv')
+outcomes_rej_pes_mooi.to_csv('./data/results/outcomes_rej_pes_cac.csv')
 outcomes_rej_chi2_mooi = pd.DataFrame(outcomes_rej_chi2, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_chi2_mooi.to_csv('./data/results/dn_outcomes_rej_chi2.csv')
+outcomes_rej_chi2_mooi.to_csv('./data/results/outcomes_rej_cac.csv')
 outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
-outcomes_rej_both_mooi.to_csv('./data/results/dn_outcomes_rej_both.csv')
-
-
+outcomes_rej_both_mooi.to_csv('./data/results/outcomes_rej_cac.csv')
 
 tabel=np.zeros((5,5))
 tabel[0,0]=MSPE_r
@@ -269,6 +254,8 @@ tabel[4,1]=np.size(outcomes[1:,5],0)
 tabel[4,2]=np.size(outcomes_rej_pes[1:,5],0)
 tabel[4,3]=np.size(outcomes_rej_chi2[1:,5],0)
 tabel[4,4]=np.size(outcomes_rej_both[1:,5],0)
+tabel_df=pd.DataFrame(tabel)
+tabel_df.to_csv('./data/results/tabel_df_cac.csv')
 
 si=np.zeros((2,5))
 si[0,0]=scipy.stats.ttest_1samp(outcomes[1:,5],MSPE_r)[0]
@@ -279,6 +266,8 @@ si[0,3]=scipy.stats.ttest_1samp(outcomes_rej_both[1:,5],MSPE_r)[0]
 si[1,0]=scipy.stats.ttest_ind(outcomes[1:,5],outcomes_rej_pes[1:,5],equal_var=False)[0]
 si[1,1]=scipy.stats.ttest_ind(outcomes[1:,5],outcomes_rej_chi2[1:,5],equal_var=False)[0]
 si[1,2]=scipy.stats.ttest_ind(outcomes[1:,5],outcomes_rej_both[1:,5],equal_var=False)[0]
+si_df=pd.DataFrame(si)
+si_df.to_csv('./data/results/si_df_cac.csv')
 
 tabel2=np.zeros((5,5))
 tabel2[0,0]=MSPE_sigma
@@ -306,6 +295,8 @@ tabel2[4,1]=np.size(outcomes[1:,6],0)
 tabel2[4,2]=np.size(outcomes_rej_pes[1:,6],0)
 tabel2[4,3]=np.size(outcomes_rej_chi2[1:,6],0)
 tabel2[4,4]=np.size(outcomes_rej_both[1:,6],0)
+tabel2_df=pd.DataFrame(tabel2)
+tabel2_df.to_csv('./data/results/tabel2_df_cac.csv')
 
 si2=np.zeros((2,5))
 si2[0,0]=scipy.stats.ttest_1samp(outcomes[1:,6],MSPE_sigma)[0]
@@ -316,9 +307,7 @@ si2[0,3]=scipy.stats.ttest_1samp(outcomes_rej_both[1:,6],MSPE_sigma)[0]
 si2[1,0]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_pes[1:,6],equal_var=False)[0]
 si2[1,1]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_chi2[1:,6],equal_var=False)[0]
 si2[1,2]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_both[1:,6],equal_var=False)[0]
-
-
-
-
+si2_df=pd.DataFrame(si2)
+si2_df.to_csv('./data/results/si2_df_cac.csv')
 
 
