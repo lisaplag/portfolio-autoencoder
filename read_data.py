@@ -124,7 +124,6 @@ def compute_descriptives(returns):
 #plot_histogram(returns)
 #returns = import_data('CAC_without_penny_stocks')
 #mktrf, rf = get_rf('daily', True)
-
 #merged = join_risky_with_riskless(returns, rf)
 
 

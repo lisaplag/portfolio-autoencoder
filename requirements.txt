@@ -1,7 +1,9 @@
+arch.bootstrap
 keras
 matplotlib
 numpy
 os
 pandas
-tensorflow
+random
 scipy
+tensorflow

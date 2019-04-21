@@ -17,6 +17,7 @@ from keras.layers import Input, Dense, GaussianNoise
 from keras.models import Model, Sequential
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import HDF5Matrix
+import scipy
 
 session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
                               inter_op_parallelism_threads=1)
@@ -229,6 +230,8 @@ for q in range(0,500):
     else:
         outcomes_rej_both=np.concatenate((outcomes_rej_both,res),axis=0)
 
+
+# Store results to CSV
 outcomes_mooi = pd.DataFrame(outcomes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
 outcomes_mooi.to_csv('./data/results/dn_outcomes_not_rej.csv')
 outcomes_rej_pes_mooi = pd.DataFrame(outcomes_rej_pes, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
@@ -238,9 +241,84 @@ outcomes_rej_chi2_mooi.to_csv('./data/results/dn_outcomes_rej_chi2.csv')
 outcomes_rej_both_mooi = pd.DataFrame(outcomes_rej_both, columns=['Chi2', 'Pesaran', 'Portmanteau1', 'Portmanteau3', 'Portmanteau5','MSPE_r', 'MSPE_sigma'])
 outcomes_rej_both_mooi.to_csv('./data/results/dn_outcomes_rej_both.csv')
 
-print(outcomes_mooi[1:6].mean())
-print(outcomes_rej_pes_mooi[1:37].mean())
-print(outcomes_rej_chi2_mooi[1:59].mean())
-print(outcomes_rej_both_mooi[1:399].mean())
+
+
+tabel=np.zeros((5,5))
+tabel[0,0]=MSPE_r
+tabel[1,0]=MSPE_r
+tabel[2,0]=MSPE_r
+tabel[3,0]=0
+tabel[4,0]=1
+tabel[0,1]=outcomes[1:,5].mean()
+tabel[0,2]=outcomes_rej_pes[1:,5].mean()
+tabel[0,3]=outcomes_rej_chi2[1:,5].mean()
+tabel[0,4]=outcomes_rej_both[1:,5].mean()
+tabel[1,1]=np.amin(outcomes[1:,5])
+tabel[1,2]=np.amin(outcomes_rej_pes[1:,5])
+tabel[1,3]=np.amin(outcomes_rej_chi2[1:,5])
+tabel[1,4]=np.amin(outcomes_rej_both[1:,5])
+tabel[2,1]=np.amax(outcomes[1:,5])
+tabel[2,2]=np.amax(outcomes_rej_pes[1:,5])
+tabel[2,3]=np.amax(outcomes_rej_chi2[1:,5])
+tabel[2,4]=np.amax(outcomes_rej_both[1:,5])
+tabel[3,1]=np.std(outcomes[1:,5])
+tabel[3,2]=np.std(outcomes_rej_pes[1:,5])
+tabel[3,3]=np.std(outcomes_rej_chi2[1:,5])
+tabel[3,4]=np.std(outcomes_rej_both[1:,5])
+tabel[4,1]=np.size(outcomes[1:,5],0)
+tabel[4,2]=np.size(outcomes_rej_pes[1:,5],0)
+tabel[4,3]=np.size(outcomes_rej_chi2[1:,5],0)
+tabel[4,4]=np.size(outcomes_rej_both[1:,5],0)
+
+si=np.zeros((2,5))
+si[0,0]=scipy.stats.ttest_1samp(outcomes[1:,5],MSPE_r)[0]
+si[0,1]=scipy.stats.ttest_1samp(outcomes_rej_pes[1:,5],MSPE_r)[0]
+si[0,2]=scipy.stats.ttest_1samp(outcomes_rej_chi2[1:,5],MSPE_r)[0]
+si[0,3]=scipy.stats.ttest_1samp(outcomes_rej_both[1:,5],MSPE_r)[0]
+
+si[1,0]=scipy.stats.ttest_ind(outcomes[1:,5],outcomes_rej_pes[1:,5],equal_var=False)[0]
+si[1,1]=scipy.stats.ttest_ind(outcomes[1:,5],outcomes_rej_chi2[1:,5],equal_var=False)[0]
+si[1,2]=scipy.stats.ttest_ind(outcomes[1:,5],outcomes_rej_both[1:,5],equal_var=False)[0]
+
+tabel2=np.zeros((5,5))
+tabel2[0,0]=MSPE_sigma
+tabel2[1,0]=MSPE_sigma
+tabel2[2,0]=MSPE_sigma
+tabel2[3,0]=0
+tabel2[4,0]=1
+tabel2[0,1]=outcomes[1:,6].mean()
+tabel2[0,2]=outcomes_rej_pes[1:,6].mean()
+tabel2[0,3]=outcomes_rej_chi2[1:,6].mean()
+tabel2[0,4]=outcomes_rej_both[1:,6].mean()
+tabel2[1,1]=np.amin(outcomes[1:,6])
+tabel2[1,2]=np.amin(outcomes_rej_pes[1:,6])
+tabel2[1,3]=np.amin(outcomes_rej_chi2[1:,6])
+tabel2[1,4]=np.amin(outcomes_rej_both[1:,6])
+tabel2[2,1]=np.amax(outcomes[1:,6])
+tabel2[2,2]=np.amax(outcomes_rej_pes[1:,6])
+tabel2[2,3]=np.amax(outcomes_rej_chi2[1:,6])
+tabel2[2,4]=np.amax(outcomes_rej_both[1:,6])
+tabel2[3,1]=np.std(outcomes[1:,6])
+tabel2[3,2]=np.std(outcomes_rej_pes[1:,6])
+tabel2[3,3]=np.std(outcomes_rej_chi2[1:,6])
+tabel2[3,4]=np.std(outcomes_rej_both[1:,6])
+tabel2[4,1]=np.size(outcomes[1:,6],0)
+tabel2[4,2]=np.size(outcomes_rej_pes[1:,6],0)
+tabel2[4,3]=np.size(outcomes_rej_chi2[1:,6],0)
+tabel2[4,4]=np.size(outcomes_rej_both[1:,6],0)
+
+si2=np.zeros((2,5))
+si2[0,0]=scipy.stats.ttest_1samp(outcomes[1:,6],MSPE_sigma)[0]
+si2[0,1]=scipy.stats.ttest_1samp(outcomes_rej_pes[1:,6],MSPE_sigma)[0]
+si2[0,2]=scipy.stats.ttest_1samp(outcomes_rej_chi2[1:,6],MSPE_sigma)[0]
+si2[0,3]=scipy.stats.ttest_1samp(outcomes_rej_both[1:,6],MSPE_sigma)[0]
+
+si2[1,0]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_pes[1:,6],equal_var=False)[0]
+si2[1,1]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_chi2[1:,6],equal_var=False)[0]
+si2[1,2]=scipy.stats.ttest_ind(outcomes[1:,6],outcomes_rej_both[1:,6],equal_var=False)[0]
+
+
+
+
 
 

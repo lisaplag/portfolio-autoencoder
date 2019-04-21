@@ -89,9 +89,9 @@ def advanced_autoencoder(x_in, epochs, batch_size, activations, depth, neurons):
     earlystopper=EarlyStopping(monitor='val_loss',min_delta=0,patience=10,verbose=0,mode='auto',baseline=None,restore_best_weights=True)
     history=autoencoder.fit(x_in, x_in, epochs=epochs, batch_size=batch_size, \
                               shuffle=False, validation_split=0.15, verbose=0,callbacks=[earlystopper])
-    errors = np.add(autoencoder.predict(x_in),-x_in)
     
     # saving results of error distribution tests
+    errors = np.add(autoencoder.predict(x_in),-x_in)
     A=np.zeros((5))
     A[0]=chi2test(errors)
     A[1]=pesarantest(errors)
@@ -226,23 +226,19 @@ def aggregate_stats(stats, depths, neurons, write=True):
     return counts, counts_df1, counts_df2, counts_df3
     
     
-    
-index = 'FTSE_without_penny_stocks_different_neurons'
-#index = 'FTSE_without_penny_stocks'
+
+index = 'FTSE_without_penny_stocks'
 iterations=100
 different_depths=[1,2,3,4,5]
-different_neurons=[180,160,140]
-#different_neurons=[120,100,80]
+different_neurons=[120,100,80]
 
-#counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
+counts, stat1, stat2, stat3 = get_stats(index, iterations, different_depths, different_neurons, True)
 
-stat1 = data.import_data('results/' + index + '_stats1')
-stat2 = data.import_data('results/' + index + '_stats2')
-stat3 = data.import_data('results/' + index + '_stats3')
+#stat1 = data.import_data('results/' + index + '_stats1')
+#stat2 = data.import_data('results/' + index + '_stats2')
+#stat3 = data.import_data('results/' + index + '_stats3')
 
 counts1, sig_counts1, sig_counts2, sig_counts3 = aggregate_stats([stat1, stat2, stat3], different_depths, different_neurons)
-
-
 
 
 

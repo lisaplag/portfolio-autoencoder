@@ -9,6 +9,6 @@ _You must have Python 3.6 installed (not lower or higher!)_
 - Install all the dependencies via the command line
     - `pip install -r requirements.txt`
 
-- Run the tool in the IDE of your choice (tested in Spyder and PyCharm)
-    - `portfolios.py`
+- Run the files in the IDE of your choice (tested in Spyder and PyCharm)
+
     
