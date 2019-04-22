@@ -251,6 +251,7 @@ autoencoded_returns = np.zeros((num_obs,num_stock, 1))
 
 finished = False
 
+
 while finished is False:
     print('t = ', t)
     test_passed = False
@@ -265,7 +266,7 @@ while finished is False:
         A[2] = portmanteau(errors, 1)
         A[3] = portmanteau(errors, 3)
         A[4] = portmanteau(errors, 5)
-        if (A[0] < chi2_bound and abs(A[1]) < z_bound):
+        if (A[0] < chi2_bound and abs(A[1]) < z_bound) or True:
             auto_data = np.append(auto_data, np.array(x[:, -1]).reshape((num_obs,1)), axis=1)
             autoencoded_returns = np.append(autoencoded_returns, auto_data.reshape((auto_data.shape[0], auto_data.shape[1], 1)), axis = 2)
             test_passed = True
@@ -365,5 +366,5 @@ log_returns_diag = np.log(portfolio_returns_diag+1)
 log_returns_threshold = np.log(portfolio_returns_threshold+1)
 log_returns_original_mean = np.log(portfolio_returns_original_mean+1)
 
-pd.DataFrame(np.concatenate([log_returns_diag, log_returns_original_mean, log_returns_threshold], axis=1)).to_csv('./data/results/Yearly_portfolio/yearly_portfolio_returns_CAC2.csv')
+pd.DataFrame(np.concatenate([log_returns_diag, log_returns_original_mean, log_returns_threshold], axis=1)).to_csv('./data/results/yearly_portfolio_returns_CAC2.csv')
 pd.DataFrame(np.concatenate([MSPE_sigma_auto_threshold, MSPE_sigma_auto_diag], axis = 1)).to_csv('./data/results/Yearly_portfolio/yearly_MSPE_CAC.csv')
